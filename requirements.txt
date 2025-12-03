@@ -1,0 +1,26 @@
+# Discord Bot Requirements
+# Core Discord library
+discord.py>=2.3.2
+
+# Music functionality
+yt-dlp>=2023.12.30
+PyNaCl>=1.5.0
+ffmpeg-python>=0.2.0
+
+# Database support
+aiomysql>=0.2.0
+aiosqlite>=0.19.0
+
+# System monitoring
+psutil>=5.9.8
+
+# Additional features
+python-dotenv>=1.0.0  # Environment variables support
+aiohttp>=3.9.0  # Async HTTP requests for lyrics, etc.
+beautifulsoup4>=4.12.0  # Web scraping for lyrics
+lyricsgenius>=3.0.0  # Genius API for lyrics (optional)
+
+# FFmpeg is required for music playback but must be installed separately:
+# Ubuntu/Debian: sudo apt-get install ffmpeg
+# Windows: Download from https://ffmpeg.org/download.html
+# macOS: brew install ffmpeg

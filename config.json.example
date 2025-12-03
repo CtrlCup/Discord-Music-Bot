@@ -1,0 +1,56 @@
+
+{
+    "bot": {
+        "token": "YOUR_DISCORD_BOT_TOKEN",
+        "name": "MusicMaster",
+        "display_name": "🎵 MusicMaster Bot",
+        "prefix": ["!", "/"],
+        "activity": "Listening to !info",
+        "owner": "Gamerfreak_LP aka Alex"
+    },
+    "database": {
+        "type": "mysql",
+        "local": true,
+        "host": "localhost",
+        "port": 3306,
+        "username": "root",
+        "password": "",
+        "database": "discord_bot_stats",
+        "sqlite_path": "bot_database.db"
+    },
+    "music": {
+        "default_volume": 0.5,
+        "max_queue_size": 100,
+        "timeout": 300,
+        "empty_channel_timeout": 300,
+        "multi_channel_support": true,
+        "auto_disconnect": true,
+        "save_queue": true,
+        "dj_role": "DJ",
+        "vote_skip_percentage": 0.5,
+        "max_song_duration": 3600,
+        "enable_lyrics": true,
+        "enable_reactions": true
+    },
+    "features": {
+        "statistics": {
+            "track_songs": true,
+            "track_listening_time": true,
+            "history_days": 30
+        },
+        "playlists": {
+            "max_playlists_per_user": 10,
+            "max_songs_per_playlist": 100,
+            "allow_public": true
+        },
+        "premium": {
+            "enabled": false,
+            "premium_role": "Premium",
+            "benefits": {
+                "longer_songs": true,
+                "priority_queue": true,
+                "unlimited_playlists": true
+            }
+        }
+    }
+}
