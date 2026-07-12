@@ -61,7 +61,6 @@ def load_config():
         'music': {
             'timeout': int(os.getenv('MUSIC_TIMEOUT', '300')),
             'empty_channel_timeout': int(os.getenv('MUSIC_EMPTY_CHANNEL_TIMEOUT', '120')),
-            'multi_channel_support': _env_bool('MUSIC_MULTI_CHANNEL_SUPPORT', True),
             'default_stream_url': os.getenv('MUSIC_DEFAULT_STREAM_URL', 'https://ilovemusic.de/iloveradio.m3u'),
             'radio_streams': radio_streams,
         },

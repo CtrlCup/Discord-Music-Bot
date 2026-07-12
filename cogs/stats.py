@@ -289,8 +289,7 @@ class Stats(commands.Cog):
             logger.exception(f"Konnte Discord-Profildaten für Nutzer {user.id} nicht laden")
             return
 
-        created_at = discord.utils.snowflake_time(int(discord_user['id']))
-        lines = [f"🗓️ Konto erstellt: {created_at.strftime('%d.%m.%Y')}"]
+        lines = []
         if discord_user.get('email'):
             lines.append(f"✉️ E-Mail: {discord_user['email']}")
         lines.append(f"🔐 MFA aktiviert: {'Ja' if discord_user.get('mfa_enabled') else 'Nein'}")
@@ -372,6 +371,16 @@ class Stats(commands.Cog):
 
         if hasattr(user, 'avatar') and user.avatar:
             embed.set_thumbnail(url=user.avatar.url)
+
+        # Discord-ID und Konto-Erstellungsdatum stecken direkt in der Snowflake-ID und sind damit
+        # öffentlich für jeden berechenbar - kein !connect nötig
+        account_created = discord.utils.snowflake_time(user.id)
+        embed.add_field(name="🆔 Discord-ID", value=str(user.id), inline=True)
+        embed.add_field(
+            name="📅 Konto erstellt am",
+            value=account_created.strftime("%d.%m.%Y %H:%M"),
+            inline=True
+        )
 
         # Add fields
         if stats['first_joined']:

@@ -74,8 +74,8 @@ class MusicAdvanced(commands.Cog):
 
     async def _update_now_playing(self, guild, title):
         """Setzt die Bot-Activity und postet - falls aktiviert - eine Songwechsel-Ankündigung.
-        Hinweis: Discord erlaubt Bots nur eine globale Presence, bei mehreren gleichzeitigen
-        Wiedergaben (Multi-Channel-Support) zeigt sie daher immer nur den zuletzt gestarteten Song."""
+        Hinweis: Discord erlaubt Bots nur eine globale Presence, bei gleichzeitiger Wiedergabe
+        auf mehreren Servern zeigt sie daher immer nur den zuletzt gestarteten Song."""
         try:
             await self.bot.change_presence(
                 activity=discord.Activity(type=discord.ActivityType.listening, name=title)
@@ -164,40 +164,31 @@ class MusicAdvanced(commands.Cog):
             logger.error(f"Error tracking song play: {e}")
     
     async def get_voice_client_for_user(self, ctx):
-        """Get or create voice client for user's channel with multi-channel support"""
+        """Get or create voice client for user's channel.
+        Discord erlaubt einem einzelnen Bot-Konto pro Server (Guild) nur eine einzige aktive
+        Sprachverbindung gleichzeitig - das ist eine Plattform-Grenze, kein Detail dieses Bots.
+        Ist der Bot bereits in einem anderen Kanal desselben Servers, wird das hier klar
+        zurückgemeldet statt zu versuchen, eine zweite (unmögliche) Verbindung aufzubauen."""
         if not ctx.author.voice:
             await ctx.send("❌ Du musst in einem Sprachkanal sein!")
             return None
-        
+
         user_channel = ctx.author.voice.channel
         state = self.get_guild_state(ctx.guild.id)
-        
-        # Multi-channel support check
-        if not self.bot.config['music'].get('multi_channel_support', True):
-            # Single channel mode - use guild's voice client
-            if ctx.voice_client:
-                if ctx.voice_client.channel != user_channel:
-                    await ctx.send("❌ Ich bin bereits in einem anderen Sprachkanal!")
-                    return None
-                return ctx.voice_client
-            else:
-                vc = await user_channel.connect()
-                state.voice_clients[user_channel.id] = vc
-                return vc
-        else:
-            # Multi-channel mode
-            if user_channel.id in state.voice_clients:
-                return state.voice_clients[user_channel.id]
-            else:
-                # Check if bot can join another channel
-                if len(state.voice_clients) >= 5:  # Limit to 5 simultaneous channels
-                    await ctx.send("❌ Maximale Anzahl gleichzeitiger Kanäle erreicht!")
-                    return None
-                
-                # Create new voice client for this channel
-                vc = await user_channel.connect()
-                state.voice_clients[user_channel.id] = vc
-                return vc
+
+        if ctx.voice_client:
+            if ctx.voice_client.channel != user_channel:
+                await ctx.send(
+                    f"❌ Ich bin gerade schon in **{ctx.voice_client.channel.name}** aktiv. "
+                    "Ein Bot-Konto kann pro Server nur in einem Sprachkanal gleichzeitig sein "
+                    "(Grenze von Discord selbst) - tritt dem Kanal bei oder warte, bis ich dort fertig bin."
+                )
+                return None
+            return ctx.voice_client
+
+        vc = await user_channel.connect()
+        state.voice_clients[user_channel.id] = vc
+        return vc
     
     async def play_next(self, ctx, voice_channel_id):
         """Play the next song in the queue for a specific channel"""
@@ -487,7 +478,7 @@ class MusicAdvanced(commands.Cog):
         if not vc.is_playing() and not vc.is_paused():
             await self.play_next(ctx, vc.channel.id)
 
-    @commands.command(name='queue', aliases=['q'])
+    @commands.command(name='queue', aliases=['q', 'list'])
     async def queue_command(self, ctx, page: int = 1):
         """Zeigt die aktuelle Warteschlange"""
         if not ctx.voice_client:
@@ -708,18 +699,21 @@ class MusicAdvanced(commands.Cog):
         """Stoppt die Musik und leert die Warteschlange"""
         if not ctx.voice_client:
             return await ctx.send("❌ Ich bin in keinem Sprachkanal!")
-        
+
         state = self.get_guild_state(ctx.guild.id)
-        queue = state.get_queue(ctx.voice_client.channel.id)
+        # channel_id vorher sichern: ctx.voice_client ist eine "live" Property (liest bei jedem
+        # Zugriff guild.voice_client neu) und wird nach disconnect() bereits None
+        channel_id = ctx.voice_client.channel.id
+        queue = state.get_queue(channel_id)
         queue.clear()
-        
+
         ctx.voice_client.stop()
         await ctx.voice_client.disconnect()
-        
+
         # Clean up state
-        if ctx.voice_client.channel.id in state.voice_clients:
-            del state.voice_clients[ctx.voice_client.channel.id]
-        state.cleanup_channel(ctx.voice_client.channel.id)
+        if channel_id in state.voice_clients:
+            del state.voice_clients[channel_id]
+        state.cleanup_channel(channel_id)
         
         await ctx.send("⏹️ Musik gestoppt und Warteschlange geleert!")
     
