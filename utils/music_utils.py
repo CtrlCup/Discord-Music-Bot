@@ -2,11 +2,35 @@ import discord
 import yt_dlp
 import asyncio
 import logging
+import aiohttp
 from datetime import datetime
 import random
 from typing import Optional, Dict, List
 
 logger = logging.getLogger('discord_bot.music_utils')
+
+STREAM_RESOLVE_TIMEOUT = aiohttp.ClientTimeout(total=10)
+
+
+async def resolve_stream_url(url: str) -> str:
+    """Löst eine .m3u/.m3u8-Playlist-URL zur eigentlichen Stream-URL auf, die ffmpeg direkt
+    öffnen kann (manche Sender liefern hier nur eine einzelne rohe URL statt eines
+    #EXTM3U-Manifests, das ffmpeg selbstständig auflösen würde)."""
+    if not url.lower().split('?')[0].endswith(('.m3u', '.m3u8')):
+        return url
+
+    try:
+        async with aiohttp.ClientSession(timeout=STREAM_RESOLVE_TIMEOUT) as session:
+            async with session.get(url) as resp:
+                text = await resp.text()
+        for line in text.splitlines():
+            line = line.strip()
+            if line and not line.startswith('#'):
+                return line
+    except Exception:
+        logger.exception(f"Konnte Stream-Playlist nicht auflösen: {url}")
+
+    return url
 
 # YouTube DL options
 ytdl_format_options = {

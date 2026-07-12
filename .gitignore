@@ -35,7 +35,6 @@ env/
 .DS_Store
 
 # Bot specific
-config.json
 bot.log
 *.db
 *.sqlite

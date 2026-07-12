@@ -17,12 +17,17 @@ class Database:
     async def initialize(self):
         """Initialize database connection and create tables"""
         try:
-            if self.db_type == 'sqlite' or (self.db_type == 'mysql' and self.config['local'] and not await self._check_mysql_available()):
+            if self.db_type == 'mysql' and self.config['local'] and not await self._check_mysql_available():
+                logger.info("MySQL lokal nicht erreichbar, verwende stattdessen SQLite...")
+                self.db_type = 'sqlite'
+
+            if self.db_type == 'sqlite':
                 await self._init_sqlite()
             else:
                 await self._init_mysql()
             
             await self._create_tables()
+            await self._migrate_existing_tables()
             logger.info(f"Database initialized successfully using {self.db_type}")
         except Exception as e:
             logger.error(f"Failed to initialize database: {e}")
@@ -32,6 +37,31 @@ class Database:
                 self.db_type = 'sqlite'
                 await self._init_sqlite()
                 await self._create_tables()
+                await self._migrate_existing_tables()
+
+    async def _migrate_existing_tables(self):
+        """Best-effort ALTER TABLE for columns added after the initial release (ignores 'already exists' errors)"""
+        alter_statements = [
+            "ALTER TABLE user_stats ADD COLUMN join_count INTEGER DEFAULT 0",
+            "ALTER TABLE guild_settings ADD COLUMN announce_channel_id INTEGER",
+            "ALTER TABLE guild_settings ADD COLUMN announce_enabled BOOLEAN DEFAULT 1",
+        ]
+
+        if self.db_type == 'sqlite':
+            for stmt in alter_statements:
+                try:
+                    await self.connection.execute(stmt)
+                except Exception:
+                    pass  # column already exists
+            await self.connection.commit()
+        else:
+            async with self.pool.acquire() as conn:
+                async with conn.cursor() as cursor:
+                    for stmt in alter_statements:
+                        try:
+                            await cursor.execute(stmt)
+                        except Exception:
+                            pass  # column already exists
     
     async def _check_mysql_available(self):
         """Check if MySQL is available"""
@@ -44,7 +74,7 @@ class Database:
             )
             await conn.ensure_closed()
             return True
-        except:
+        except Exception:
             return False
     
     async def _init_sqlite(self):
@@ -85,6 +115,7 @@ class Database:
                 message_count INTEGER DEFAULT 0,
                 voice_time_seconds INTEGER DEFAULT 0,
                 total_time_seconds INTEGER DEFAULT 0,
+                join_count INTEGER DEFAULT 0,
                 UNIQUE(user_id, guild_id)
             )
             """,
@@ -175,7 +206,19 @@ class Database:
                 announce_songs BOOLEAN DEFAULT 1,
                 allow_duplicates BOOLEAN DEFAULT 1,
                 max_song_duration INTEGER DEFAULT 3600,
+                announce_channel_id INTEGER,
+                announce_enabled BOOLEAN DEFAULT 1,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS oauth_links (
+                user_id INTEGER PRIMARY KEY,
+                access_token TEXT NOT NULL,
+                refresh_token TEXT NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                scope TEXT,
+                linked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """,
             """
@@ -221,6 +264,7 @@ class Database:
                 message_count INT DEFAULT 0,
                 voice_time_seconds INT DEFAULT 0,
                 total_time_seconds INT DEFAULT 0,
+                join_count INT DEFAULT 0,
                 PRIMARY KEY (user_id, guild_id),
                 INDEX idx_user_guild (user_id, guild_id)
             )
@@ -318,7 +362,19 @@ class Database:
                 announce_songs BOOLEAN DEFAULT TRUE,
                 allow_duplicates BOOLEAN DEFAULT TRUE,
                 max_song_duration INT DEFAULT 3600,
+                announce_channel_id BIGINT,
+                announce_enabled BOOLEAN DEFAULT TRUE,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS oauth_links (
+                user_id BIGINT PRIMARY KEY,
+                access_token TEXT NOT NULL,
+                refresh_token TEXT NOT NULL,
+                expires_at DATETIME NOT NULL,
+                scope VARCHAR(255),
+                linked_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """
         ]

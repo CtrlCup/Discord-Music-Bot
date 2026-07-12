@@ -256,8 +256,9 @@ class Playlists(commands.Cog):
             if self.db.db_type == 'sqlite':
                 await self.db.connection.execute(
                     """
-                    INSERT OR REPLACE INTO favorite_songs (user_id, guild_id, song_title, song_url)
+                    INSERT INTO favorite_songs (user_id, guild_id, song_title, song_url)
                     VALUES (?, ?, ?, ?)
+                    ON CONFLICT(user_id, guild_id, song_url) DO UPDATE SET play_count = play_count + 1
                     """,
                     (user_id, guild_id, title, url)
                 )
@@ -459,7 +460,7 @@ class Playlists(commands.Cog):
             return await ctx.send("❌ Es läuft gerade kein Song!")
         
         # Get current song from music cog
-        music_cog = self.bot.get_cog('MusicAdvanced') or self.bot.get_cog('Music')
+        music_cog = self.bot.get_cog('MusicAdvanced')
         if not music_cog:
             return await ctx.send("❌ Musik-System nicht verfügbar!")
         

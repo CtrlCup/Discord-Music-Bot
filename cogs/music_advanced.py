@@ -7,8 +7,10 @@ from datetime import datetime, timedelta
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.music_utils import YTDLSource, AdvancedMusicQueue, GuildMusicState, InteractiveView, MusicControlView, ytdl
+from utils.music_utils import YTDLSource, AdvancedMusicQueue, GuildMusicState, InteractiveView, MusicControlView, ytdl, ffmpeg_options, resolve_stream_url
 from utils.database import Database
+from utils.db_operations import DatabaseOperations
+from utils import track_resolver
 
 logger = logging.getLogger('discord_bot.music_advanced')
 
@@ -35,6 +37,69 @@ class MusicAdvanced(commands.Cog):
         if guild_id not in self.guild_states:
             self.guild_states[guild_id] = GuildMusicState(guild_id)
         return self.guild_states[guild_id]
+
+    def _get_radio_streams(self):
+        return self.bot.config.get('music', {}).get('radio_streams', [])
+
+    def _find_stream(self, name: str):
+        for stream in self._get_radio_streams():
+            if stream['name'].lower() == name.lower():
+                return stream
+        return None
+
+    def _get_default_stream(self):
+        url = self.bot.config.get('music', {}).get('default_stream_url')
+        for stream in self._get_radio_streams():
+            if stream['url'] == url:
+                return stream
+        return {'name': 'default', 'title': 'Radio-Stream', 'url': url}
+
+    def _make_stream_song(self, stream: dict, requester):
+        return {
+            'url': stream['url'],
+            'title': stream['title'],
+            'duration': None,
+            'requester': requester,
+            'is_stream': True
+        }
+
+    def _format_elapsed(self, song: dict) -> str:
+        """Formatiert die seit Wiedergabestart vergangene Zeit (funktioniert auch für Radiosender
+        ohne bekannte Gesamtdauer, da start_time bei jedem Songstart in play_next() gesetzt wird)"""
+        start_time = song.get('start_time')
+        if not start_time:
+            return ''
+        elapsed = int((datetime.utcnow() - start_time).total_seconds())
+        return f"{elapsed // 60}:{elapsed % 60:02d}"
+
+    async def _update_now_playing(self, guild, title):
+        """Setzt die Bot-Activity und postet - falls aktiviert - eine Songwechsel-Ankündigung.
+        Hinweis: Discord erlaubt Bots nur eine globale Presence, bei mehreren gleichzeitigen
+        Wiedergaben (Multi-Channel-Support) zeigt sie daher immer nur den zuletzt gestarteten Song."""
+        try:
+            await self.bot.change_presence(
+                activity=discord.Activity(type=discord.ActivityType.listening, name=title)
+            )
+        except Exception:
+            logger.exception("Presence-Update fehlgeschlagen")
+
+        try:
+            guild_settings = await DatabaseOperations.get_guild_settings(self.db, guild.id)
+            enabled = guild_settings.get('announce_enabled')
+            if enabled is None:
+                enabled = self.bot.config.get('notifications', {}).get('song_change_default_enabled', True)
+            channel_id = guild_settings.get('announce_channel_id')
+            if enabled and channel_id:
+                channel = guild.get_channel(channel_id)
+                if channel:
+                    embed = discord.Embed(
+                        title="🎵 Jetzt läuft",
+                        description=f"**{title}**",
+                        color=discord.Color.blue()
+                    )
+                    await channel.send(embed=embed)
+        except Exception:
+            logger.exception("Songwechsel-Ankündigung fehlgeschlagen")
     
     @tasks.loop(minutes=1)
     async def check_empty_channels(self):
@@ -147,7 +212,36 @@ class MusicAdvanced(commands.Cog):
         if vc and vc.is_connected():
             next_song = queue.get_next()
             if next_song:
+                next_song['start_time'] = datetime.utcnow()
                 try:
+                    if next_song.get('is_stream'):
+                        stream_url = await resolve_stream_url(next_song['url'])
+                        source = discord.PCMVolumeTransformer(
+                            discord.FFmpegPCMAudio(stream_url, **ffmpeg_options),
+                            volume=state.volume
+                        )
+                        vc.play(
+                            source,
+                            after=lambda e: asyncio.run_coroutine_threadsafe(
+                                self.play_next(ctx, voice_channel_id),
+                                self.bot.loop
+                            )
+                        )
+
+                        embed = discord.Embed(
+                            title="📻 Jetzt spielt",
+                            description=f"**{next_song['title']}**",
+                            color=discord.Color.blue()
+                        )
+                        embed.add_field(name="Angefordert von", value=next_song['requester'].mention)
+
+                        view = MusicControlView(self, ctx)
+                        msg = await ctx.send(embed=embed, view=view)
+                        state.now_playing_messages[voice_channel_id] = msg
+
+                        await self._update_now_playing(ctx.guild, next_song['title'])
+                        return
+
                     # Track song play
                     await self.track_song_play(
                         ctx.guild.id,
@@ -156,22 +250,22 @@ class MusicAdvanced(commands.Cog):
                         next_song['url'],
                         next_song.get('duration', 0)
                     )
-                    
+
                     player = await YTDLSource.from_url(
-                        next_song['url'], 
-                        loop=self.bot.loop, 
-                        stream=True, 
+                        next_song['url'],
+                        loop=self.bot.loop,
+                        stream=True,
                         requester=next_song['requester']
                     )
-                    
+
                     vc.play(
-                        player, 
+                        player,
                         after=lambda e: asyncio.run_coroutine_threadsafe(
-                            self.play_next(ctx, voice_channel_id), 
+                            self.play_next(ctx, voice_channel_id),
                             self.bot.loop
                         )
                     )
-                    
+
                     # Create now playing embed with controls
                     embed = discord.Embed(
                         title="🎵 Jetzt spielt",
@@ -184,12 +278,14 @@ class MusicAdvanced(commands.Cog):
                     embed.add_field(name="Warteschlange", value=f"{len(queue.queue)} Songs")
                     if player.thumbnail:
                         embed.set_thumbnail(url=player.thumbnail)
-                    
+
                     # Send with music controls
                     view = MusicControlView(self, ctx)
                     msg = await ctx.send(embed=embed, view=view)
                     state.now_playing_messages[voice_channel_id] = msg
-                    
+
+                    await self._update_now_playing(ctx.guild, player.title)
+
                 except Exception as e:
                     logger.error(f"Error playing song: {e}")
                     await ctx.send(f"❌ Fehler beim Abspielen: {e}")
@@ -203,22 +299,72 @@ class MusicAdvanced(commands.Cog):
                     state.cleanup_channel(voice_channel_id)
     
     @commands.command(name='play', aliases=['p'])
-    async def play(self, ctx, *, query: str):
-        """Spielt einen Song oder fügt ihn zur Warteschlange hinzu"""
+    async def play(self, ctx, *, query: str = None):
+        """Spielt einen Song/Link (YouTube, YouTube Music, Spotify, Deezer) oder ohne Angabe den Standard-Radiostream"""
         vc = await self.get_voice_client_for_user(ctx)
         if not vc:
             return
-        
+
         state = self.get_guild_state(ctx.guild.id)
         queue = state.get_queue(vc.channel.id)
-        
+
+        if query is None:
+            stream = self._get_default_stream()
+            if not stream.get('url'):
+                return await ctx.send("❌ Kein Standard-Stream konfiguriert und keine Suchanfrage angegeben!")
+            queue.add(self._make_stream_song(stream, ctx.author))
+            await ctx.send(f"📻 **{stream['title']}** zur Warteschlange hinzugefügt!")
+            if not vc.is_playing() and not vc.is_paused():
+                await self.play_next(ctx, vc.channel.id)
+            return
+
         async with ctx.typing():
             try:
+                # Spotify-/Deezer-Links vorab in YouTube-Suchqueries auflösen
+                resolved_queries = await track_resolver.resolve(self.bot.config, query)
+                if resolved_queries is not None:
+                    if not resolved_queries:
+                        return await ctx.send("❌ Konnte keine Songs zu diesem Link finden.")
+
+                    added = 0
+                    last_title = None
+                    for resolved_query in resolved_queries:
+                        try:
+                            entry_data = await self.bot.loop.run_in_executor(
+                                None, lambda q=resolved_query: ytdl.extract_info(q, download=False)
+                            )
+                            entry = entry_data['entries'][0] if 'entries' in entry_data else entry_data
+                            if not entry:
+                                continue
+                            song_data = {
+                                'url': f"https://www.youtube.com/watch?v={entry.get('id', '')}",
+                                'title': entry.get('title', 'Unknown'),
+                                'duration': entry.get('duration'),
+                                'requester': ctx.author
+                            }
+                            queue.add(song_data)
+                            added += 1
+                            last_title = song_data['title']
+                        except Exception:
+                            logger.exception(f"Fehler beim Auflösen von {resolved_query}")
+
+                    if added == 0:
+                        await ctx.send("❌ Konnte keine Songs zu diesem Link finden.")
+                        return
+                    elif added == 1:
+                        await ctx.send(f"✅ **{last_title}** zur Warteschlange hinzugefügt!")
+                    else:
+                        await ctx.send(f"✅ {added} Songs zur Warteschlange hinzugefügt!")
+
+                    if not vc.is_playing() and not vc.is_paused():
+                        await self.play_next(ctx, vc.channel.id)
+                    return
+
                 # Extract info
                 data = await self.bot.loop.run_in_executor(
                     None, lambda: ytdl.extract_info(query, download=False)
                 )
-                
+
                 if 'entries' in data:
                     # It's a playlist
                     entries = data['entries']
@@ -296,7 +442,51 @@ class MusicAdvanced(commands.Cog):
             except Exception as e:
                 logger.error(f"Error processing play command: {e}")
                 await ctx.send(f"❌ Fehler: {str(e)}")
-    
+
+    @commands.group(name='radio', invoke_without_command=True)
+    async def radio(self, ctx):
+        """Zeigt die verfügbaren Internet-Radiosender (siehe auch `!radio play <name>`)"""
+        await ctx.invoke(self.radio_list)
+
+    @radio.command(name='list')
+    async def radio_list(self, ctx):
+        """Zeigt alle konfigurierten Radiosender"""
+        streams = self._get_radio_streams()
+
+        embed = discord.Embed(title="📻 Verfügbare Radiosender", color=discord.Color.blue())
+        if streams:
+            text = "\n".join(f"**{s['name']}** – {s['title']}" for s in streams)
+            embed.add_field(name="Sender", value=text, inline=False)
+        else:
+            embed.add_field(name="Sender", value="Keine Sender konfiguriert.", inline=False)
+
+        embed.add_field(
+            name="Verwendung",
+            value="`!play` ohne Angabe – spielt den Standard-Stream\n"
+                  "`!radio play <name>` – spielt einen bestimmten Sender",
+            inline=False
+        )
+        await ctx.send(embed=embed)
+
+    @radio.command(name='play')
+    async def radio_play(self, ctx, name: str):
+        """Spielt einen konfigurierten Radiosender"""
+        stream = self._find_stream(name)
+        if not stream:
+            return await ctx.send(f"❌ Unbekannter Sender `{name}`. Nutze `!radio list` für eine Übersicht.")
+
+        vc = await self.get_voice_client_for_user(ctx)
+        if not vc:
+            return
+
+        state = self.get_guild_state(ctx.guild.id)
+        queue = state.get_queue(vc.channel.id)
+        queue.add(self._make_stream_song(stream, ctx.author))
+        await ctx.send(f"📻 **{stream['title']}** zur Warteschlange hinzugefügt!")
+
+        if not vc.is_playing() and not vc.is_paused():
+            await self.play_next(ctx, vc.channel.id)
+
     @commands.command(name='queue', aliases=['q'])
     async def queue_command(self, ctx, page: int = 1):
         """Zeigt die aktuelle Warteschlange"""
@@ -305,12 +495,12 @@ class MusicAdvanced(commands.Cog):
         
         state = self.get_guild_state(ctx.guild.id)
         queue = state.get_queue(ctx.voice_client.channel.id)
-        
-        if len(queue.queue) == 0:
-            return await ctx.send("📭 Die Warteschlange ist leer!")
-        
+
+        if not queue.current and len(queue.queue) == 0:
+            return await ctx.send("📭 Es läuft nichts und die Warteschlange ist leer!")
+
         items_per_page = 10
-        pages = (len(queue.queue) - 1) // items_per_page + 1
+        pages = max(1, (len(queue.queue) - 1) // items_per_page + 1)
         
         if page < 1 or page > pages:
             page = 1
@@ -325,9 +515,11 @@ class MusicAdvanced(commands.Cog):
         
         # Current song
         if queue.current:
+            elapsed = self._format_elapsed(queue.current)
+            elapsed_text = f"\n⏱️ Läuft seit {elapsed}" if elapsed else ""
             embed.add_field(
                 name="🎵 Aktuell",
-                value=f"**{queue.current['title'][:50]}**\n{queue.current['requester'].mention}",
+                value=f"**{queue.current['title'][:50]}**\n{queue.current['requester'].mention}{elapsed_text}",
                 inline=False
             )
         
@@ -450,22 +642,25 @@ class MusicAdvanced(commands.Cog):
                 color=discord.Color.blue()
             )
             embed.add_field(name="Angefordert von", value=queue.current['requester'].mention)
-            
-            # Progress bar
-            if hasattr(ctx.voice_client.source, 'start_time'):
-                elapsed = (datetime.utcnow() - ctx.voice_client.source.start_time).total_seconds()
+
+            # Progress bar (nur wenn Gesamtdauer bekannt ist - Radiosender haben keine)
+            start_time = queue.current.get('start_time')
+            if start_time:
+                elapsed = (datetime.utcnow() - start_time).total_seconds()
                 duration = queue.current.get('duration', 0)
-                if duration > 0:
+                elapsed_str = f"{int(elapsed) // 60}:{int(elapsed) % 60:02d}"
+                if duration and duration > 0:
                     progress = int((elapsed / duration) * 20)
                     bar = '█' * progress + '░' * (20 - progress)
-                    elapsed_str = f"{int(elapsed) // 60}:{int(elapsed) % 60:02d}"
                     duration_str = f"{duration // 60}:{duration % 60:02d}"
                     embed.add_field(
                         name="Fortschritt",
                         value=f"`{bar}`\n{elapsed_str} / {duration_str}",
                         inline=False
                     )
-            
+                else:
+                    embed.add_field(name="⏱️ Läuft seit", value=elapsed_str, inline=False)
+
             await ctx.send(embed=embed)
     
     @commands.command(name='skip', aliases=['next'])

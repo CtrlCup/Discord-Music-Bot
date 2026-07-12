@@ -1,0 +1,31 @@
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    ports:
+      # Interner OAuth-Callback-Webserver. Standard bindet nur an localhost,
+      # dein bestehender Reverse-Proxy (auf demselben Host) leitet die
+      # öffentliche HTTPS-URL hierher weiter. Läuft der Reverse-Proxy selbst
+      # in einem separaten Docker-Netzwerk, stattdessen dieses Netzwerk hier
+      # einbinden und das Port-Mapping entfernen.
+      - "127.0.0.1:${OAUTH_WEB_PORT:-8080}:8080"
+
+  mysql:
+    image: mysql:8
+    restart: unless-stopped
+    profiles:
+      - mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-discord_bot_stats}
+      MYSQL_USER: ${MYSQL_USER:-bot}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme}
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:

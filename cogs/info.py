@@ -29,13 +29,20 @@ class Info(commands.Cog):
         
         # Music commands
         music_commands = [
-            "`!play <link/suche>` - Spielt einen Song oder fügt ihn zur Warteschlange hinzu",
+            "`!play <link/suche>` - Spielt einen Song (YouTube, YouTube Music, Spotify, Deezer) oder fügt ihn zur Warteschlange hinzu",
+            "`!play` (ohne Angabe) - Spielt den Standard-Radiostream",
+            "`!radio list` - Zeigt alle verfügbaren Internet-Radiosender",
+            "`!radio play <name>` - Spielt einen bestimmten Radiosender",
             "`!stop` - Stoppt die Musik und leert die Warteschlange",
             "`!pause` - Pausiert die aktuelle Wiedergabe",
             "`!resume` - Setzt die pausierte Wiedergabe fort",
             "`!skip` / `!next` - Überspringt den aktuellen Song",
             "`!previous` / `!prev` - Spielt den vorherigen Song",
             "`!queue` / `!q` - Zeigt die Warteschlange",
+            "`!remove <position>` - Entfernt einen Song aus der Warteschlange",
+            "`!move <von> <nach>` - Verschiebt einen Song in der Warteschlange",
+            "`!clear` - Leert die gesamte Warteschlange",
+            "`!shuffle` - Mischt die Warteschlange",
             "`!volume <0-100>` - Ändert die Lautstärke"
         ]
         embed.add_field(
@@ -43,19 +50,34 @@ class Info(commands.Cog):
             value="\n".join(music_commands),
             inline=False
         )
-        
+
         # Stats commands
         stats_commands = [
-            "`!stats` - Zeigt deine eigenen Statistiken",
-            "`!stats <@user/name>` - Zeigt Statistiken eines anderen Benutzers",
-            "`!leaderboard <messages/voice>` - Zeigt die Top 10 Rangliste"
+            "`!stats` - Schickt dir deine Statistiken per Direktnachricht",
+            "`!stats <@user/name>` - Schickt dir die Statistiken eines anderen Benutzers per Direktnachricht",
+            "`!stats` direkt per Bot-DM - Zeigt zusätzlich deine privaten Details bei Verknüpfung",
+            "`!leaderboard <messages/voice/joins/longest_session>` - Zeigt die Top 10 Rangliste (mit Umschalt-Buttons)",
+            "`!connect` - Verknüpft dein Discord-Konto per Login für private Zusatzdaten in !stats",
+            "`!disconnect` - Entfernt die Konto-Verknüpfung wieder"
         ]
         embed.add_field(
             name="📊 Statistik-Befehle",
             value="\n".join(stats_commands),
             inline=False
         )
-        
+
+        # Settings commands
+        settings_commands = [
+            "`!settings show` - Zeigt die aktuellen Server-Einstellungen",
+            "`!settings announce #kanal` - Setzt den Kanal für Songwechsel-Ankündigungen",
+            "`!settings announce_toggle on/off` - Schaltet Songwechsel-Ankündigungen an/aus"
+        ]
+        embed.add_field(
+            name="⚙️ Einstellungen (nur Admins)",
+            value="\n".join(settings_commands),
+            inline=False
+        )
+
         # System commands
         system_commands = [
             "`!info` / `!help` - Zeigt diese Hilfe",
@@ -69,11 +91,13 @@ class Info(commands.Cog):
             value="\n".join(system_commands),
             inline=False
         )
-        
+
         # Features
         features = [
-            "✅ YouTube/YouTube Music Unterstützung",
+            "✅ YouTube/YouTube Music/Spotify/Deezer Unterstützung",
+            "📻 Internet-Radiosender (konfigurierbar)",
             "📊 Automatisches Tracking von Statistiken",
+            "🔒 Optionale Konto-Verknüpfung für private Profildaten",
             "💾 Datenbank-Speicherung (MySQL/SQLite)",
             "🎵 Warteschlangen-System für Musik",
             "👥 Multi-Server Unterstützung"

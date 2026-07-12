@@ -311,10 +311,10 @@ class StatisticsAdvanced(commands.Cog):
         
         # Additional info
         skip_rate = ((stats['total_plays'] - stats['complete_plays']) / stats['total_plays'] * 100) if stats['total_plays'] > 0 else 0
+        peak_hour_line = f"**Aktivste Stunde:** {stats['peak_hour']}:00 Uhr" if stats['peak_hour'] else "Keine Stunden-Daten"
         embed.add_field(
             name="📈 Weitere Infos",
-            value=f"**Skip-Rate:** {skip_rate:.1f}%\n"
-                  f"**Aktivste Stunde:** {stats['peak_hour']}:00 Uhr" if stats['peak_hour'] else "Keine Daten",
+            value=f"**Skip-Rate:** {skip_rate:.1f}%\n{peak_hour_line}",
             inline=False
         )
         
