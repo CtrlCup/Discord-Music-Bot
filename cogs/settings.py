@@ -19,7 +19,7 @@ class Settings(commands.Cog):
         self.db = Database(self.bot.config)
         await self.db.initialize()
 
-    @commands.group(name='settings', invoke_without_command=True)
+    @commands.hybrid_group(name='settings', invoke_without_command=True)
     @commands.has_permissions(manage_guild=True)
     async def settings(self, ctx):
         """Zeigt/ändert die Bot-Einstellungen für diesen Server"""

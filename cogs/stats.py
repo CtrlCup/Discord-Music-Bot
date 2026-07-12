@@ -301,13 +301,13 @@ class Stats(commands.Cog):
 
     def _find_shared_guild(self, user: discord.abc.User) -> Optional[discord.Guild]:
         """Findet einen Server, auf dem sowohl der Bot als auch der Nutzer Mitglied sind
-        (fuer !stats per Bot-Direktnachricht, wo es kein ctx.guild gibt)"""
+        (für !stats per Bot-Direktnachricht, wo es kein ctx.guild gibt)"""
         for guild in self.bot.guilds:
             if guild.get_member(user.id):
                 return guild
         return None
 
-    @commands.command(name='stats')
+    @commands.hybrid_command(name='stats')
     async def stats(self, ctx, *, target: Optional[str] = None):
         """Zeigt Statistiken eines Benutzers an (wird immer per Direktnachricht verschickt)"""
         is_dm = ctx.guild is None
@@ -553,7 +553,7 @@ class Stats(commands.Cog):
         embed.set_footer(text=f"Server: {guild.name}")
         return embed
 
-    @commands.command(name='leaderboard', aliases=['lb', 'top'])
+    @commands.hybrid_command(name='leaderboard', aliases=['lb', 'top'])
     async def leaderboard(self, ctx, category: str = 'messages'):
         """Zeigt die Rangliste für verschiedene Kategorien (Buttons zum Umschalten inklusive)"""
         resolved = CATEGORY_ALIASES.get(category.lower())

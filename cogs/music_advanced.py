@@ -289,9 +289,9 @@ class MusicAdvanced(commands.Cog):
                     await vc.disconnect()
                     state.cleanup_channel(voice_channel_id)
     
-    @commands.command(name='play', aliases=['p'])
+    @commands.hybrid_command(name='play', aliases=['p'])
     async def play(self, ctx, *, query: str = None):
-        """Spielt einen Song/Link (YouTube, YouTube Music, Spotify, Deezer) oder ohne Angabe den Standard-Radiostream"""
+        """Spielt einen Song/Link (YouTube, Spotify, Deezer) oder ohne Angabe den Standard-Radiostream"""
         vc = await self.get_voice_client_for_user(ctx)
         if not vc:
             return
@@ -434,7 +434,7 @@ class MusicAdvanced(commands.Cog):
                 logger.error(f"Error processing play command: {e}")
                 await ctx.send(f"❌ Fehler: {str(e)}")
 
-    @commands.group(name='radio', invoke_without_command=True)
+    @commands.hybrid_group(name='radio', invoke_without_command=True)
     async def radio(self, ctx):
         """Zeigt die verfügbaren Internet-Radiosender (siehe auch `!radio play <name>`)"""
         await ctx.invoke(self.radio_list)
@@ -478,7 +478,7 @@ class MusicAdvanced(commands.Cog):
         if not vc.is_playing() and not vc.is_paused():
             await self.play_next(ctx, vc.channel.id)
 
-    @commands.command(name='queue', aliases=['q', 'list'])
+    @commands.hybrid_command(name='queue', aliases=['q', 'list'])
     async def queue_command(self, ctx, page: int = 1):
         """Zeigt die aktuelle Warteschlange"""
         if not ctx.voice_client:
@@ -539,7 +539,7 @@ class MusicAdvanced(commands.Cog):
         
         await ctx.send(embed=embed)
     
-    @commands.command(name='remove', aliases=['rm'])
+    @commands.hybrid_command(name='remove', aliases=['rm'])
     async def remove(self, ctx, position: int):
         """Entfernt einen Song aus der Warteschlange"""
         if not ctx.voice_client:
@@ -554,7 +554,7 @@ class MusicAdvanced(commands.Cog):
         else:
             await ctx.send("❌ Ungültige Position!")
     
-    @commands.command(name='clear')
+    @commands.hybrid_command(name='clear')
     async def clear(self, ctx):
         """Leert die gesamte Warteschlange"""
         if not ctx.voice_client:
@@ -566,7 +566,7 @@ class MusicAdvanced(commands.Cog):
         queue.clear()
         await ctx.send("🗑️ Warteschlange geleert!")
     
-    @commands.command(name='move')
+    @commands.hybrid_command(name='move')
     async def move(self, ctx, from_pos: int, to_pos: int):
         """Verschiebt einen Song in der Warteschlange"""
         if not ctx.voice_client:
@@ -580,7 +580,7 @@ class MusicAdvanced(commands.Cog):
         else:
             await ctx.send("❌ Ungültige Positionen!")
     
-    @commands.command(name='shuffle')
+    @commands.hybrid_command(name='shuffle')
     async def shuffle(self, ctx):
         """Mischt die Warteschlange"""
         if not ctx.voice_client:
@@ -592,7 +592,7 @@ class MusicAdvanced(commands.Cog):
         queue.shuffle()
         await ctx.send("🔀 Warteschlange gemischt!")
     
-    @commands.command(name='loop')
+    @commands.hybrid_command(name='loop')
     async def loop(self, ctx, mode: str = None):
         """Aktiviert/Deaktiviert Loop-Modus (song/queue/off)"""
         if not ctx.voice_client:
@@ -617,7 +617,7 @@ class MusicAdvanced(commands.Cog):
             status = "Song-Loop" if queue.loop else "Queue-Loop" if queue.loop_queue else "Aus"
             await ctx.send(f"🔁 Loop-Status: **{status}**\nNutze `!loop song/queue/off`")
     
-    @commands.command(name='nowplaying', aliases=['np'])
+    @commands.hybrid_command(name='nowplaying', aliases=['np'])
     async def nowplaying(self, ctx):
         """Zeigt den aktuell spielenden Song"""
         if not ctx.voice_client or not ctx.voice_client.is_playing():
@@ -654,7 +654,7 @@ class MusicAdvanced(commands.Cog):
 
             await ctx.send(embed=embed)
     
-    @commands.command(name='skip', aliases=['next'])
+    @commands.hybrid_command(name='skip', aliases=['next'])
     async def skip(self, ctx):
         """Überspringt den aktuellen Song"""
         if ctx.voice_client and ctx.voice_client.is_playing():
@@ -676,7 +676,7 @@ class MusicAdvanced(commands.Cog):
         else:
             await ctx.send("❌ Es läuft gerade keine Musik!")
     
-    @commands.command(name='previous', aliases=['prev'])
+    @commands.hybrid_command(name='previous', aliases=['prev'])
     async def previous(self, ctx):
         """Spielt den vorherigen Song"""
         if not ctx.voice_client:
@@ -694,7 +694,7 @@ class MusicAdvanced(commands.Cog):
         else:
             await ctx.send("❌ Kein vorheriger Song verfügbar!")
     
-    @commands.command(name='stop')
+    @commands.hybrid_command(name='stop')
     async def stop(self, ctx):
         """Stoppt die Musik und leert die Warteschlange"""
         if not ctx.voice_client:
@@ -717,7 +717,7 @@ class MusicAdvanced(commands.Cog):
         
         await ctx.send("⏹️ Musik gestoppt und Warteschlange geleert!")
     
-    @commands.command(name='pause')
+    @commands.hybrid_command(name='pause')
     async def pause(self, ctx):
         """Pausiert die aktuelle Wiedergabe"""
         if ctx.voice_client and ctx.voice_client.is_playing():
@@ -726,7 +726,7 @@ class MusicAdvanced(commands.Cog):
         else:
             await ctx.send("❌ Es läuft gerade keine Musik!")
     
-    @commands.command(name='resume')
+    @commands.hybrid_command(name='resume')
     async def resume(self, ctx):
         """Setzt die pausierte Wiedergabe fort"""
         if ctx.voice_client and ctx.voice_client.is_paused():
@@ -735,7 +735,7 @@ class MusicAdvanced(commands.Cog):
         else:
             await ctx.send("❌ Die Wiedergabe ist nicht pausiert!")
     
-    @commands.command(name='volume', aliases=['vol'])
+    @commands.hybrid_command(name='volume', aliases=['vol'])
     async def volume(self, ctx, volume: int = None):
         """Ändert die Lautstärke (0-100)"""
         if not ctx.voice_client:

@@ -22,7 +22,7 @@ class Account(commands.Cog):
     def db(self) -> Database:
         return self.bot.oauth_db
 
-    @commands.command(name='connect')
+    @commands.hybrid_command(name='connect')
     async def connect(self, ctx):
         """Verknüpft dein Discord-Konto per Login, um private Zusatzdaten in !stats freizuschalten"""
         oauth_cfg = self.bot.config.get('oauth', {})
@@ -59,7 +59,7 @@ class Account(commands.Cog):
                 "da der Link nicht öffentlich im Kanal gepostet werden sollte."
             )
 
-    @commands.command(name='disconnect')
+    @commands.hybrid_command(name='disconnect')
     async def disconnect(self, ctx):
         """Entfernt die Verknüpfung deines Discord-Kontos wieder"""
         await DatabaseOperations.delete_oauth_link(self.db, ctx.author.id)

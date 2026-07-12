@@ -7,12 +7,15 @@ services:
     volumes:
       - ./data:/app/data
     ports:
-      # Interner OAuth-Callback-Webserver. Standard bindet nur an localhost,
-      # dein bestehender Reverse-Proxy (auf demselben Host) leitet die
-      # öffentliche HTTPS-URL hierher weiter. Läuft der Reverse-Proxy selbst
-      # in einem separaten Docker-Netzwerk, stattdessen dieses Netzwerk hier
-      # einbinden und das Port-Mapping entfernen.
+      # Interner OAuth-Callback-Webserver, erreichbar über 127.0.0.1:8080 auf dem Host.
+      # Nur nötig, wenn dein Reverse-Proxy NICHT im "proxy"-Netzwerk unten läuft
+      # (z.B. wenn er direkt auf dem Host installiert ist). Läuft er als Container
+      # im "proxy"-Netzwerk, kann dieses Mapping entfernt werden - dann reicht die
+      # interne Adresse "bot:8080" (siehe networks unten).
       - "127.0.0.1:${OAUTH_WEB_PORT:-8080}:8080"
+    networks:
+      - internal
+      - proxy
 
   mysql:
     image: mysql:8
@@ -26,6 +29,22 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme}
     volumes:
       - mysql_data:/var/lib/mysql
+    networks:
+      - internal
 
 volumes:
   mysql_data:
+
+networks:
+  # Internes Netzwerk nur für bot <-> mysql, wird von Compose automatisch verwaltet.
+  internal: {}
+  # Externes Netzwerk, in dem dein Reverse-Proxy (Traefik/Caddy/nginx-Container etc.)
+  # läuft. Muss VORHER existieren, z.B. per "docker network create proxy" oder weil
+  # es schon im Compose-Stack deines Reverse-Proxys definiert ist. Der Proxy erreicht
+  # den Bot dann direkt über den Servicenamen "bot" auf Port 8080 (z.B. "bot:8080"
+  # als Ziel in der Traefik-/Caddy-Konfiguration), ganz ohne Host-Port-Mapping.
+  # Falls du keinen Docker-Netzwerk-basierten Reverse-Proxy nutzt, kannst du diesen
+  # Netzwerk-Eintrag und die "proxy"-Zeile unter "bot" oben einfach löschen.
+  proxy:
+    external: true
+    name: proxy

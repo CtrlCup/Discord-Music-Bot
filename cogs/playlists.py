@@ -318,7 +318,7 @@ class Playlists(commands.Cog):
                         'play_count': row[6]
                     } for row in rows]
     
-    @commands.group(name='playlist', aliases=['pl'], invoke_without_command=True)
+    @commands.hybrid_group(name='playlist', aliases=['pl'], invoke_without_command=True)
     async def playlist(self, ctx):
         """Playlist-Verwaltung"""
         embed = discord.Embed(
@@ -452,7 +452,7 @@ class Playlists(commands.Cog):
         else:
             await ctx.send("❌ Playlist nicht gefunden oder Fehler beim Löschen!")
     
-    @commands.command(name='favorite', aliases=['fav'])
+    @commands.hybrid_command(name='favorite', aliases=['fav'])
     async def favorite(self, ctx):
         """Fügt den aktuellen Song zu deinen Favoriten hinzu"""
         
@@ -482,7 +482,7 @@ class Playlists(commands.Cog):
         else:
             await ctx.send("❌ Fehler beim Hinzufügen zu Favoriten!")
     
-    @commands.command(name='favorites', aliases=['favs'])
+    @commands.hybrid_command(name='favorites', aliases=['favs'])
     async def favorites(self, ctx):
         """Zeigt deine Lieblingssongs"""
         

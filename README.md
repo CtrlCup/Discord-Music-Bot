@@ -18,7 +18,7 @@ Ein leistungsstarker Discord Bot mit Musik-Streaming, Internet-Radio, umfangreic
 - **Persistente Speicherung**: MySQL oder SQLite
 
 ### ℹ️ Weitere Features
-- **Flexible Präfixe**: Befehle mit `!` oder `/`
+- **Slash-Commands**: Jeder Befehl funktioniert sowohl als `!befehl` (Text-Präfix) als auch als natives Discord `/befehl` (mit Discords eigener Parameter-UI, Autovervollständigung für Kanäle/Nutzer etc.)
 - **Automatische Datenbank-Fallbacks**: Wechselt automatisch zu SQLite, wenn MySQL nicht verfügbar ist
 - **Server-Einstellungen**: `!settings` (nur für Mitglieder mit "Server verwalten") steuert Ankündigungskanal/-toggle pro Server
 - **Umfangreiche Hilfe**: Detaillierte Befehlsübersicht mit `!info`
@@ -139,25 +139,28 @@ http:
           - url: "http://127.0.0.1:8080"
 ```
 
-Läuft Traefik selbst als Docker-Container im selben Docker-Netzwerk wie der Bot, geht es alternativ auch ganz ohne dynamische Datei, direkt über Labels in der `docker-compose.yml` des Bots:
+Läuft Traefik selbst als Docker-Container, ist das sogar der einfachere Weg: `docker-compose.yml` bindet den `bot`-Service bereits an ein externes Netzwerk namens `proxy` (siehe unten im File). Läuft dein Traefik-Container in genau diesem Netzwerk, reicht es, dort per Labels auf den Bot zu verweisen - ganz ohne dynamische Datei:
 ```yaml
 services:
+  traefik:
+    # ... deine Traefik-Konfiguration ...
+    networks:
+      - proxy
+
   bot:
-    # ... restliche Konfiguration ...
+    # ... restliche Konfiguration (schon in unserer docker-compose.yml enthalten) ...
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.musicbot-oauth.rule=Host(`bot.deinedomain.de`) && PathPrefix(`/oauth`)"
       - "traefik.http.routers.musicbot-oauth.entrypoints=websecure"
       - "traefik.http.routers.musicbot-oauth.tls.certresolver=letsencrypt"
       - "traefik.http.services.musicbot-oauth.loadbalancer.server.port=8080"
-    networks:
-      - traefik-public
 
 networks:
-  traefik-public:
+  proxy:
     external: true
 ```
-In diesem Fall zusätzlich das `ports:`-Mapping für den `bot`-Service in `docker-compose.yml` entfernen (Traefik erreicht den Container direkt über das gemeinsame Docker-Netzwerk) und stattdessen den Service ins `traefik-public`-Netzwerk hängen.
+Das externe Netzwerk `proxy` muss vorher existieren (`docker network create proxy`, oder es wird schon von deinem Reverse-Proxy-Stack angelegt) - sonst schlägt `docker compose up` fehl. Das `ports:`-Mapping in `docker-compose.yml` kann in diesem Fall bleiben (schadet nicht) oder entfernt werden, wenn du ausschließlich über das Netzwerk zugreifen willst.
 
 **Caddy (einfachste Variante, holt/erneuert das TLS-Zertifikat automatisch ohne weitere Konfiguration):**
 
@@ -285,6 +288,10 @@ Alles läuft über `.env` (siehe `.env.example` für alle verfügbaren Variablen
 - **Bot-Verhalten**: `BOT_PREFIX`, `BOT_DISPLAY_NAME`, `BOT_ACTIVITY`
 - **Musik/Radio**: `MUSIC_DEFAULT_STREAM_URL`, `RADIO_STREAMS` (JSON-Liste), `MUSIC_EMPTY_CHANNEL_TIMEOUT`, `MUSIC_TIMEOUT`
 - **Sonstiges**: `PLAYLISTS_MAX_PER_USER`, `NOTIFICATIONS_SONG_CHANGE_DEFAULT_ENABLED`, `OAUTH_SCOPES`
+
+### Slash-Commands (`/befehl`)
+
+Alle Befehle werden beim Start automatisch bei Discord registriert (`bot.py::_sync_app_commands`). Ohne weitere Einstellung passiert das **global** — das kann laut Discord bis zu einer Stunde dauern, bis `/befehl` überall sichtbar ist. Für die Entwicklung/zum sofortigen Testen `DEV_GUILD_ID` in der `.env` auf die Server-ID deines Testservers setzen: dann werden die Commands ausschließlich (sofort sichtbar) auf diesen einen Server synchronisiert, statt global. Server-ID bekommst du über Discord → Entwicklermodus aktivieren (Einstellungen → Erweitert) → Rechtsklick auf den Server → "ID kopieren".
 
 ### Datenbank-Optionen
 

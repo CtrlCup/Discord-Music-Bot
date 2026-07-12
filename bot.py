@@ -118,6 +118,43 @@ class MusicBot(commands.Bot):
         await self.oauth_db.initialize()
         self.oauth_runner = await start_oauth_server(self)
 
+        await self._sync_app_commands()
+
+    async def _sync_app_commands(self):
+        """Registriert alle Hybrid-Commands (siehe Cogs) als Discord Slash-Commands (/).
+        Ist DEV_GUILD_ID gesetzt, werden die Commands NUR auf diesen einen Server
+        synchronisiert (sofort sichtbar, praktisch zum Testen). Globale und
+        Guild-spezifische Commands sind für Discord getrennte Objekte - würde man
+        beides gleichzeitig syncen, erschiene jeder Befehl auf dem Dev-Server doppelt.
+        Ohne DEV_GUILD_ID wird stattdessen global synchronisiert (kann bis zu einer
+        Stunde dauern, bis es überall sichtbar ist) - das ist der Produktivmodus."""
+        dev_guild_id = os.getenv('DEV_GUILD_ID')
+
+        if dev_guild_id:
+            try:
+                # copy_global_to() muss vor dem Leeren der globalen Liste passieren,
+                # da es die Commands aus genau dieser lokalen Liste kopiert
+                guild = discord.Object(id=int(dev_guild_id))
+                self.tree.copy_global_to(guild=guild)
+                synced_guild = await self.tree.sync(guild=guild)
+                logger.info(f"{len(synced_guild)} Slash-Commands sofort auf Server {dev_guild_id} synchronisiert (DEV_GUILD_ID gesetzt, kein globaler Sync)")
+            except Exception:
+                logger.exception("Guild-Slash-Command-Sync fehlgeschlagen")
+
+            try:
+                # Globale Commands danach leeren, damit keine alten globalen
+                # Registrierungen neben dem Guild-Sync doppelt auftauchen
+                self.tree.clear_commands(guild=None)
+                await self.tree.sync()
+            except Exception:
+                logger.exception("Bereinigung der globalen Slash-Commands fehlgeschlagen")
+        else:
+            try:
+                synced = await self.tree.sync()
+                logger.info(f"{len(synced)} Slash-Commands global synchronisiert")
+            except Exception:
+                logger.exception("Globaler Slash-Command-Sync fehlgeschlagen")
+
     async def load_cogs(self):
         """Load all cogs from the cogs directory"""
         # Load advanced cogs instead of basic ones

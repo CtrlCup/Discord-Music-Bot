@@ -9,7 +9,7 @@ class Info(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
     
-    @commands.command(name='info', aliases=['help', 'hilfe'])
+    @commands.hybrid_command(name='info', aliases=['help', 'hilfe'])
     async def info(self, ctx):
         """Zeigt alle verfügbaren Befehle und Informationen zum Bot"""
         
@@ -123,7 +123,7 @@ class Info(commands.Cog):
         
         await ctx.send(embed=embed)
     
-    @commands.command(name='ping')
+    @commands.hybrid_command(name='ping')
     async def ping(self, ctx):
         """Zeigt die Bot-Latenz"""
         latency = round(self.bot.latency * 1000)
@@ -136,7 +136,7 @@ class Info(commands.Cog):
         
         await ctx.send(embed=embed)
     
-    @commands.command(name='uptime')
+    @commands.hybrid_command(name='uptime')
     async def uptime(self, ctx):
         """Zeigt die Betriebszeit des Bots"""
         uptime = datetime.utcnow() - self.bot.start_time
@@ -164,7 +164,7 @@ class Info(commands.Cog):
         
         await ctx.send(embed=embed)
     
-    @commands.command(name='botinfo')
+    @commands.hybrid_command(name='botinfo')
     async def botinfo(self, ctx):
         """Zeigt technische Informationen über den Bot"""
         
@@ -222,7 +222,7 @@ class Info(commands.Cog):
         
         await ctx.send(embed=embed)
     
-    @commands.command(name='invite')
+    @commands.hybrid_command(name='invite')
     async def invite(self, ctx):
         """Zeigt den Einladungslink für den Bot"""
         
