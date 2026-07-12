@@ -12,7 +12,7 @@ python bot.py
 # Docker Compose (recommended)
 docker compose build
 docker compose up -d                       # SQLite (default)
-docker compose --profile mysql up -d       # also starts the bundled MySQL container
+docker compose --profile mysql up -d       # also starts the bundled MariaDB container (service name "mysql")
 docker compose logs -f bot
 
 # Unit tests (run inside the built image so all deps are guaranteed present)
@@ -48,7 +48,7 @@ cog_files = ['music_advanced', 'stats', 'statistics_advanced', 'playlists', 'inf
 - `InteractiveView` / `MusicControlView` are `discord.ui.View` button controls attached to now-playing/search messages.
 
 **Database layer** (`utils/database.py` + `utils/db_operations.py`):
-- `Database` abstracts SQLite (`aiosqlite`) vs MySQL (`aiomysql`) behind the same interface, auto-falling back to SQLite if MySQL is configured but unreachable or fails to init.
+- `Database` abstracts SQLite (`aiosqlite`) vs MySQL-protocol (`aiomysql`) behind the same interface, auto-falling back to SQLite if the MySQL-protocol backend is configured but unreachable or fails to init. `DB_TYPE=mysql` is the internal identifier for this branch, but the bundled `docker-compose.yml` service actually runs `mariadb:11`, not real MySQL — aiomysql/PyMySQL speak the same wire protocol so no code change was needed, MariaDB is just a lighter drop-in. Don't assume `DB_TYPE=mysql` implies an actual MySQL server is running.
 - Table schemas are defined **twice**, once per backend (`_create_tables_sqlite` / `_create_tables_mysql`) with different placeholder styles (`?` vs `%s`) and column types. `Database._migrate_existing_tables()` runs best-effort `ALTER TABLE ADD COLUMN` statements (ignoring "already exists" errors) so columns added after the initial release (e.g. `join_count`, `announce_channel_id`) reach already-existing local DB files too. When adding a column: extend both `CREATE TABLE` variants **and** add an `ALTER TABLE` line here.
 - `db_operations.py` (`DatabaseOperations`) holds static helpers, always branching on `db.db_type` to pick the right SQL dialect. Prefer computing derived stats (main voice channel, average session length, voice co-presence overlap) from the existing `voice_sessions` rows at query time (see `get_main_channel`/`get_avg_session`/`get_top_companion`) rather than adding new denormalized/cached columns that need to be kept in sync.
 - Cogs each define their own thin data-access methods against `self.bot.<db attribute>` (see `playlists.py`, `statistics_advanced.py`) rather than going through a shared repository layer — expect direct SQL in cogs, not just in `utils/`.

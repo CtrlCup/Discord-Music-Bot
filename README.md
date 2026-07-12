@@ -15,7 +15,7 @@ Ein leistungsstarker Discord Bot mit Musik-Streaming, Internet-Radio, umfangreic
 - **User Tracking**: Nachrichten, Sprachkanal-Zeit, Server-Beitritte, Hauptkanal, Ø Session-Länge, häufigster "Begleiter" im Sprachkanal
 - **Leaderboards**: Nachrichten, Sprachzeit gesamt, Server-Beitritte, längste einzelne Sprachkanal-Session — umschaltbar per Buttons unter der Rangliste
 - **Private Profildetails**: Mit `!connect` kann sich ein Nutzer per Discord-Login verknüpfen und bekommt in seinen *eigenen* `!stats` zusätzliche, sonst nicht sichtbare Daten (exaktes Kontoerstellungsdatum, E-Mail, MFA-Status, Nitro-Status) — nur für sich selbst, nie für andere
-- **Persistente Speicherung**: MySQL oder SQLite
+- **Persistente Speicherung**: SQLite oder MariaDB (MySQL-Protokoll-kompatibel, ressourcenschonender als MySQL selbst)
 
 ### ℹ️ Weitere Features
 - **Slash-Commands**: Jeder Befehl funktioniert sowohl als `!befehl` (Text-Präfix) als auch als natives Discord `/befehl` (mit Discords eigener Parameter-UI, Autovervollständigung für Kanäle/Nutzer etc.)
@@ -65,7 +65,7 @@ docker compose build
 # Mit SQLite (Standard, keine weitere Einrichtung nötig)
 docker compose up -d
 
-# Alternativ mit dem mitgelieferten MySQL-Container (DB_TYPE=mysql in der .env setzen)
+# Alternativ mit dem mitgelieferten MariaDB-Container (DB_TYPE=mysql in der .env setzen)
 docker compose --profile mysql up -d
 
 docker compose logs -f bot
@@ -174,7 +174,15 @@ bot.deinedomain.de {
 ```
 Danach `caddy reload` (bzw. den Caddy-Dienst neu laden) — mehr ist nicht nötig, Caddy besorgt sich das Zertifikat beim ersten Start selbstständig.
 
-Läuft Caddy stattdessen als eigener Docker-Container, entweder das `Caddyfile` per Volume einbinden:
+Läuft Caddy stattdessen als eigener Docker-Container im selben `proxy`-Netzwerk wie der Bot (siehe `docker-compose.yml`), reicht im `Caddyfile` direkt der feste Container-Name statt `127.0.0.1`:
+```
+bot.deinedomain.de {
+    handle /oauth/* {
+        reverse_proxy discord-music-bot:8080
+    }
+}
+```
+Und im Caddy-eigenen `docker-compose.yml`, damit Caddy dasselbe Netzwerk erreicht:
 ```yaml
 services:
   caddy:
@@ -186,11 +194,17 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
 
 volumes:
   caddy_data:
 ```
-und im `Caddyfile` `reverse_proxy 127.0.0.1:8080` durch die Docker-interne Adresse ersetzen (z. B. `reverse_proxy bot:8080`, sofern Caddy im selben Docker-Netzwerk wie der `bot`-Service hängt) — oder komplett auf Labels umsteigen, falls du ohnehin `caddy-docker-proxy` statt eines statischen `Caddyfile` einsetzt.
+Alternativ komplett auf Labels umsteigen, falls du ohnehin `caddy-docker-proxy` statt eines statischen `Caddyfile` einsetzt.
 
 **nginx (Kurzfassung, falls weder Traefik noch Caddy verwendet werden):**
 ```nginx
@@ -295,8 +309,8 @@ Alle Befehle werden beim Start automatisch bei Discord registriert (`bot.py::_sy
 
 ### Datenbank-Optionen
 
-- **SQLite** (Standard): keine zusätzliche Installation, ideal für kleine bis mittlere Server
-- **MySQL**: `DB_TYPE=mysql` in `.env` setzen und `docker compose --profile mysql up -d` verwenden; bei Nichterreichbarkeit fällt der Bot automatisch auf SQLite zurück
+- **SQLite** (Standard): keine zusätzliche Installation, kein separater Serverprozess, ideal für kleine bis mittlere Server
+- **MariaDB** (`DB_TYPE=mysql`): `docker compose --profile mysql up -d` startet den mitgelieferten MariaDB-Container (`mariadb:11` im `docker-compose.yml`) statt echtem MySQL - spricht dasselbe Protokoll (der Bot verbindet sich über `aiomysql`, unverändert), braucht aber spürbar weniger RAM und startet schneller. Bei Nichterreichbarkeit fällt der Bot automatisch auf SQLite zurück. Eigenes MySQL/MariaDB extern? Einfach `MYSQL_HOST` in `.env` auf die externe Adresse setzen und den mitgelieferten `mysql`-Service in `docker-compose.yml` ignorieren/entfernen.
 
 ## 🐛 Fehlerbehebung
 
@@ -322,7 +336,7 @@ Alle Befehle werden beim Start automatisch bei Discord registriert (`bot.py::_sy
 
 ## 📊 Performance-Tipps
 
-- Nutze MySQL für Server mit >1000 Mitgliedern
+- Nutze MariaDB (`DB_TYPE=mysql`) statt SQLite für Server mit >1000 Mitgliedern
 - Regelmäßige Datenbank-Backups erstellen (`./data/bot_database.db` bzw. das `mysql_data`-Volume)
 - Bot-Logs regelmäßig leeren
 

@@ -1,6 +1,7 @@
 services:
   bot:
     build: .
+    container_name: discord-music-bot
     restart: unless-stopped
     env_file:
       - .env
@@ -11,14 +12,16 @@ services:
       # Nur nötig, wenn dein Reverse-Proxy NICHT im "proxy"-Netzwerk unten läuft
       # (z.B. wenn er direkt auf dem Host installiert ist). Läuft er als Container
       # im "proxy"-Netzwerk, kann dieses Mapping entfernt werden - dann reicht die
-      # interne Adresse "bot:8080" (siehe networks unten).
+      # interne Adresse "discord-music-bot:8080" (siehe networks unten).
       - "127.0.0.1:${OAUTH_WEB_PORT:-8080}:8080"
     networks:
       - internal
       - proxy
 
   mysql:
-    image: mysql:8
+    # MariaDB statt MySQL: gleiches Wire-Protokoll (aiomysql funktioniert unverändert),
+    # aber deutlich geringerer Speicherbedarf und schnellerer Start als mysql:8
+    image: mariadb:11
     restart: unless-stopped
     profiles:
       - mysql
@@ -41,8 +44,9 @@ networks:
   # Externes Netzwerk, in dem dein Reverse-Proxy (Traefik/Caddy/nginx-Container etc.)
   # läuft. Muss VORHER existieren, z.B. per "docker network create proxy" oder weil
   # es schon im Compose-Stack deines Reverse-Proxys definiert ist. Der Proxy erreicht
-  # den Bot dann direkt über den Servicenamen "bot" auf Port 8080 (z.B. "bot:8080"
-  # als Ziel in der Traefik-/Caddy-Konfiguration), ganz ohne Host-Port-Mapping.
+  # den Bot dann direkt über den Container-Namen "discord-music-bot" auf Port 8080
+  # (z.B. "discord-music-bot:8080" als Ziel in der Traefik-/Caddy-Konfiguration)
+  # erreichen, ganz ohne Host-Port-Mapping.
   # Falls du keinen Docker-Netzwerk-basierten Reverse-Proxy nutzt, kannst du diesen
   # Netzwerk-Eintrag und die "proxy"-Zeile unter "bot" oben einfach löschen.
   proxy:
