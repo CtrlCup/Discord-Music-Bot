@@ -30,7 +30,7 @@ class Info(commands.Cog):
         display_name = self.bot.config['bot'].get('display_name', 'Bot')
         description = self.bot.config['bot'].get('description', '')
         embed = discord.Embed(
-            title=f"🤖 {display_name}'s Dienste",
+            title=f"🤖 {display_name}'s  Dienste",
             description=description if description else None,
             color=discord.Color.green(),
             timestamp=datetime.utcnow()
@@ -67,6 +67,8 @@ class Info(commands.Cog):
             inline=False
         )
 
+        embed.add_field(name="\u200b", value="\u200b", inline=False)
+
         # Stats commands
         stats_commands = [
             "`!stats` - Schickt dir deine Statistiken per Direktnachricht",
@@ -85,6 +87,7 @@ class Info(commands.Cog):
 
         # Settings commands (Admins only)
         if is_admin:
+            embed.add_field(name="\u200b", value="\u200b", inline=False)
             settings_commands = [
                 "`!settings show` - Zeigt die aktuellen Server-Einstellungen",
                 "`!settings announce #kanal` - Setzt den Kanal für Songwechsel-Ankündigungen",
@@ -100,6 +103,7 @@ class Info(commands.Cog):
 
         # System commands (Supporters and Admins only)
         if is_supporter:
+            embed.add_field(name="\u200b", value="\u200b", inline=False)
             system_commands = [
                 "`!info` / `!help` - Zeigt diese Hilfe",
                 "`!ping` - Zeigt die Bot-Latenz",
@@ -131,15 +135,15 @@ class Info(commands.Cog):
         # )
         
         # Links
-        links = []
-        github = self.bot.config['bot'].get('github')
-        support = self.bot.config['bot'].get('support_server')
-        if github:
-            links.append(f"[GitHub Repository]({github})")
-        if support:
-            links.append(f"[Support Server]({support})")
-        if links:
-            embed.add_field(name="🔗 Links", value=" | ".join(links), inline=False)
+        # links = []
+        # github = self.bot.config['bot'].get('github')
+        # support = self.bot.config['bot'].get('support_server')
+        # if github:
+        #     links.append(f"[GitHub Repository]({github})")
+        # if support:
+        #     links.append(f"[Support Server]({support})")
+        # if links:
+        #     embed.add_field(name="🔗 Links", value=" | ".join(links), inline=False)
 
         # Note about prefix
         embed.add_field(
