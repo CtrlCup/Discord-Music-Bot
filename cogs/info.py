@@ -117,7 +117,7 @@ class Info(commands.Cog):
         )
         
         # Footer
-        version = self.bot.config['bot'].get('version', '0.1.0')
+        version = self.bot.config['bot'].get('version', '0.1.1')
         embed.set_footer(
             text=f"Bot Version {version} | Entwickelt mit ❤️ von Gamerfreak_LP",
             icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None
@@ -183,7 +183,7 @@ class Info(commands.Cog):
         process = psutil.Process()
         memory_usage = process.memory_info().rss / 1024 / 1024  # Convert to MB
         
-        version = self.bot.config['bot'].get('version', '0.1.0')
+        version = self.bot.config['bot'].get('version', '0.1.1')
         embed = discord.Embed(
             title=f"🤖 Bot Informationen (v{version})",
             color=discord.Color.blue(),
@@ -267,7 +267,7 @@ class Info(commands.Cog):
     @commands.hybrid_command(name='version', aliases=['v', 'ver'])
     async def version(self, ctx):
         """Zeigt die aktuelle Version des Bots"""
-        version = self.bot.config['bot'].get('version', '0.1.0')
+        version = self.bot.config['bot'].get('version', '0.1.1')
         embed = discord.Embed(
             title="ℹ️ Bot Version",
             description=f"Der Bot läuft aktuell auf Version **v{version}**",

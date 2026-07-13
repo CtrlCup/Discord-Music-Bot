@@ -90,9 +90,8 @@ class Stats(commands.Cog):
         self.update_online_time.start()
     
     async def cog_load(self):
-        """Initialize database when cog loads"""
-        self.db = Database(self.bot.config)
-        await self.db.initialize()
+        """Retrieve the shared database instance from the bot"""
+        self.db = self.bot.db
     
     def cog_unload(self):
         """Clean up when cog unloads"""

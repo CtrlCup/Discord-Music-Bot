@@ -16,8 +16,7 @@ class Settings(commands.Cog):
         self.db = None
 
     async def cog_load(self):
-        self.db = Database(self.bot.config)
-        await self.db.initialize()
+        self.db = self.bot.db
 
     @commands.hybrid_group(name='settings', invoke_without_command=True)
     @commands.has_permissions(manage_guild=True)

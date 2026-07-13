@@ -47,7 +47,7 @@ def load_config():
             'display_name': os.getenv('BOT_DISPLAY_NAME', '🎵 MusicMaster Bot'),
             'prefix': _env_list('BOT_PREFIX', ['!', '/']),
             'activity': os.getenv('BOT_ACTIVITY', 'Listening to !info'),
-            'version': os.getenv('BOT_VERSION', '0.1.0'),
+            'version': os.getenv('BOT_VERSION', '0.1.1'),
         },
         'database': {
             'type': os.getenv('DB_TYPE', 'sqlite'),
@@ -105,18 +105,22 @@ class MusicBot(commands.Bot):
         self.config = config
         self.start_time = datetime.utcnow()
         self.oauth_states = {}  # state -> (user_id, created_at), used by the !connect OAuth2 flow
+        self.db = None
         self.oauth_db = None
         self.oauth_runner = None
 
     async def setup_hook(self):
+        # Shared DB handle (initialized before loading cogs so they can access self.bot.db)
+        from utils.database import Database
+        self.db = Database(self.config)
+        await self.db.initialize()
+        self.oauth_db = self.db
+
         # Load cogs
         await self.load_cogs()
 
-        # Shared DB handle + web server for the OAuth2 account-link flow (cogs/account.py)
-        from utils.database import Database
+        # Web server for the OAuth2 account-link flow (cogs/account.py)
         from utils.oauth_server import start_oauth_server
-        self.oauth_db = Database(self.config)
-        await self.oauth_db.initialize()
         self.oauth_runner = await start_oauth_server(self)
 
         await self._sync_app_commands()
@@ -186,11 +190,6 @@ class MusicBot(commands.Bot):
                     await guild.me.edit(nick=config['bot']['display_name'])
             except discord.Forbidden:
                 pass  # May not have permission in some servers
-        
-        # Initialize database
-        from utils.database import Database
-        db = Database(config)
-        await db.initialize()
         
     async def on_guild_join(self, guild):
         logger.info(f'Joined new guild: {guild.name} (ID: {guild.id})')

@@ -16,9 +16,8 @@ class StatisticsAdvanced(commands.Cog):
         self.db = None
         
     async def cog_load(self):
-        """Initialize database when cog loads"""
-        self.db = Database(self.bot.config)
-        await self.db.initialize()
+        """Retrieve the shared database instance from the bot"""
+        self.db = self.bot.db
     
     async def get_top_songs(self, guild_id: int, days: int = 30, limit: int = 10) -> List[Dict]:
         """Get top played songs in the last X days"""

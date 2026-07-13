@@ -15,9 +15,8 @@ class Playlists(commands.Cog):
         self.db = None
         
     async def cog_load(self):
-        """Initialize database when cog loads"""
-        self.db = Database(self.bot.config)
-        await self.db.initialize()
+        """Retrieve the shared database instance from the bot"""
+        self.db = self.bot.db
     
     async def create_playlist(self, user_id: int, guild_id: int, name: str, description: str = None, is_public: bool = False) -> bool:
         """Create a new playlist"""
