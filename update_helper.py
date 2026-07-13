@@ -4,6 +4,7 @@
 import os
 import subprocess
 import sys
+import shutil
 
 def print_colored(text, color):
     colors = {
@@ -33,6 +34,18 @@ def parse_env(filepath):
                 key, val = line.split('=', 1)
                 env[key.strip()] = val.strip()
     return env
+
+def get_file_version(filepath):
+    if not os.path.exists(filepath):
+        return None
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            first_line = f.readline().strip()
+            if first_line.startswith('# Version:'):
+                return first_line.split(':', 1)[1].strip()
+    except Exception:
+        pass
+    return None
 
 def get_git_status():
     try:
@@ -67,6 +80,50 @@ def check_env():
         print_colored("✅ Deine .env ist aktuell! Alle Variablen aus .env.example sind vorhanden.", "green")
         return True
 
+def check_versions():
+    print_colored("\n--- 📝 Überprüfe Datei-Versionen ---", "blue")
+    
+    # Check .env
+    example_env_ver = get_file_version('.env.example')
+    local_env_ver = get_file_version('.env')
+    
+    env_ok = True
+    if example_env_ver:
+        if not local_env_ver:
+            print_colored(f"⚠️ Deine .env hat keine Versionsangabe (Aktuelle Vorlage: v{example_env_ver}).", "yellow")
+            print("  Es wird empfohlen, die Version zu prüfen und ggf. neue Einstellungen zu übernehmen.")
+            env_ok = False
+        elif local_env_ver != example_env_ver:
+            print_colored(f"⚠️ Deine .env (v{local_env_ver}) weicht von der Vorlage .env.example (v{example_env_ver}) ab!", "yellow")
+            print("  Es wurden möglicherweise neue Variablen hinzugefügt. Überprüfe die Änderungen in .env.example.")
+            env_ok = False
+        else:
+            print_colored(f"✅ .env Version ist aktuell (v{local_env_ver})", "green")
+            
+    # Check docker-compose.yml
+    if not os.path.exists('docker-compose.yml'):
+        print_colored("❌ Keine docker-compose.yml gefunden!", "red")
+        print("  Bitte erstelle eine Kopie von docker-compose.yml.example als docker-compose.yml.")
+        return False
+        
+    example_compose_ver = get_file_version('docker-compose.yml.example')
+    local_compose_ver = get_file_version('docker-compose.yml')
+    
+    compose_ok = True
+    if example_compose_ver:
+        if not local_compose_ver:
+            print_colored(f"⚠️ Deine docker-compose.yml hat keine Versionsangabe (Aktuelle Vorlage: v{example_compose_ver}).", "yellow")
+            print("  Es wird empfohlen, die Vorlage auf Änderungen zu überprüfen.")
+            compose_ok = False
+        elif local_compose_ver != example_compose_ver:
+            print_colored(f"⚠️ Deine docker-compose.yml (v{local_compose_ver}) weicht von der Vorlage docker-compose.yml.example (v{example_compose_ver}) ab!", "yellow")
+            print("  Bitte prüfe, ob sich an den Service-Definitionen in der Vorlage etwas geändert hat.")
+            compose_ok = False
+        else:
+            print_colored(f"✅ docker-compose.yml Version ist aktuell (v{local_compose_ver})", "green")
+            
+    return env_ok and compose_ok
+
 def check_git():
     print_colored("\n--- 🐙 Überprüfe Git-Status ---", "blue")
     status_lines = get_git_status()
@@ -79,32 +136,17 @@ def check_git():
         print_colored("✅ Keine lokalen Änderungen vorhanden. Bereit zum Aktualisieren.", "green")
         return True
         
-    docker_compose_changed = False
     other_changed = []
-    
     for line in status_lines:
-        # state shows status like " M", "M ", etc.
         filepath = line[3:]
-        if 'docker-compose.yml' in filepath:
-            docker_compose_changed = True
-        else:
-            other_changed.append(filepath)
-            
-    if docker_compose_changed:
-        print_colored("⚠️ Du hast lokale Änderungen an 'docker-compose.yml' vorgenommen.", "yellow")
-        print("Dies führt bei 'git pull' zu Konflikten, falls sich die Datei auf GitHub geändert hat.")
-        print_colored("Lösung für konfliktfreie Updates:", "bold")
-        print("  1. Kopiere deine Anpassungen in 'docker-compose.override.yml' (Vorlage siehe 'docker-compose.override.yml.example').")
-        print("  2. Setze 'docker-compose.yml' in den Originalzustand zurück:")
-        print_colored("     git restore docker-compose.yml", "blue")
-        print("Danach läuft 'git pull' reibungslos durch und deine Anpassungen bleiben in der Override-Datei aktiv.")
+        other_changed.append(filepath)
         
     if other_changed:
-        print("\nWeitere geänderte Dateien:")
+        print("Lokale Änderungen oder unversionierte Dateien:")
         for path in other_changed:
             print(f"  - {path}")
             
-    return not docker_compose_changed
+    return True
 
 def run_pull():
     print_colored("\n--- ⬇️ Hole Updates von GitHub ---", "blue")
@@ -112,17 +154,27 @@ def run_pull():
         print("Hole neueste Änderungen von GitHub...")
         subprocess.run(['git', 'fetch'], check=True)
         
-        # Check if we have changes in docker-compose.yml that would conflict
-        git_status = get_git_status()
-        if git_status:
-            for line in git_status:
-                if 'docker-compose.yml' in line:
-                    print_colored("❌ Update abgebrochen! Lokale Änderungen an 'docker-compose.yml' verhindern ein sauberes Pull.", "red")
-                    print("Bitte verschiebe deine Änderungen zuerst in 'docker-compose.override.yml'.")
-                    return
+        # Falls docker-compose.yml noch im Git-Index des lokalen Repos liegt,
+        # könnte es beim pullen gelöscht/überschrieben werden.
+        # Wir sichern es präventiv als Backup und stellen es danach wieder her.
+        backup_created = False
+        if os.path.exists('docker-compose.yml'):
+            res = subprocess.run(['git', 'ls-files', 'docker-compose.yml'], capture_output=True, text=True)
+            if res.stdout.strip():
+                print_colored("⚠️ docker-compose.yml wird lokal noch von Git getrackt und wird beim Pull entfernt.", "yellow")
+                print("  Erstelle Sicherheitskopie: docker-compose.yml.backup")
+                shutil.copy('docker-compose.yml', 'docker-compose.yml.backup')
+                backup_created = True
         
         print("Führe 'git pull' aus...")
         subprocess.run(['git', 'pull'], check=True)
+        
+        if backup_created:
+            print_colored("✅ Pull abgeschlossen. Restauriere deine docker-compose.yml aus dem Backup...", "green")
+            shutil.move('docker-compose.yml.backup', 'docker-compose.yml')
+            # Aus Git-Index entfernen, da es jetzt ignoriert sein sollte
+            subprocess.run(['git', 'rm', '--cached', 'docker-compose.yml'], capture_output=True)
+            
         print_colored("✅ Repository erfolgreich aktualisiert!", "green")
     except subprocess.CalledProcessError as e:
         print_colored(f"❌ Fehler bei der Git-Operation: {e}", "red")
@@ -131,10 +183,12 @@ def main():
     if len(sys.argv) > 1 and sys.argv[1] == 'pull':
         run_pull()
         check_env()
+        check_versions()
         check_git()
     else:
         # Default: Check status
         env_ok = check_env()
+        ver_ok = check_versions()
         git_ok = check_git()
         
         print_colored("\n--- 💡 Hilfe / Anleitung ---", "blue")
@@ -142,8 +196,8 @@ def main():
         print("  python3 update_helper.py         - Führt Status-Checks durch (empfohlen)")
         print("  python3 update_helper.py pull    - Holt Updates von GitHub und prüft danach die Konfiguration")
         
-        if not env_ok or not git_ok:
-            print_colored("\nBitte behebe die obigen Warnungen, um spätere Update-Konflikte zu vermeiden.", "yellow")
+        if not env_ok or not ver_ok or not git_ok:
+            print_colored("\nBitte behebe die obigen Warnungen, um einen reibungslosen Betrieb zu gewährleisten.", "yellow")
 
 if __name__ == '__main__':
     main()

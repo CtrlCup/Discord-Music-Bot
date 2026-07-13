@@ -47,6 +47,7 @@ KIReadme.md
 .env
 .env.local
 docker-compose.override.yml
+docker-compose.yml
 
 # Database backups
 *.sql

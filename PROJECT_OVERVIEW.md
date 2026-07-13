@@ -17,7 +17,7 @@ This is a feature-rich, self-hosted Discord bot that handles music streaming (fr
 
 ## 📂 Folder Structure & Key Files
 - `bot.py`: The main entry point of the Discord Bot. Loads configurations from `.env` and initializes cogs.
-- `Dockerfile` & `docker-compose.yml`: Docker configuration files for running the bot and MariaDB.
+- `Dockerfile` & `docker-compose.yml.example`: Docker configuration template for running the bot and MariaDB.
 - `docker-compose.override.yml.example`: Example template for local configuration overrides.
 - `.env` & `.env.example`: Configuration and environment variables files.
 - `update_helper.py`: Helper script to pull changes and check configurations for updates.
