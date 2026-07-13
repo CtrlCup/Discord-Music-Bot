@@ -28,10 +28,10 @@ class Info(commands.Cog):
             return await ctx.send(embed=embed, ephemeral=True)
 
         display_name = self.bot.config['bot'].get('display_name', 'Bot')
+        description = self.bot.config['bot'].get('description', '')
         embed = discord.Embed(
-            #🤖
-            title=f" {display_name}'s Information",
-            #description="Ein mit Rollen geschützter Musik- und Statistik-Bot",
+            title=f"🤖 {display_name} Information",
+            description=description if description else None,
             color=discord.Color.green(),
             timestamp=datetime.utcnow()
         )
@@ -129,6 +129,17 @@ class Info(commands.Cog):
         #     inline=False
         # )
         
+        # Links
+        links = []
+        github = self.bot.config['bot'].get('github')
+        support = self.bot.config['bot'].get('support_server')
+        if github:
+            links.append(f"[GitHub Repository]({github})")
+        if support:
+            links.append(f"[Support Server]({support})")
+        if links:
+            embed.add_field(name="🔗 Links", value=" | ".join(links), inline=False)
+
         # Note about prefix
         embed.add_field(
             name="📝 Hinweis",

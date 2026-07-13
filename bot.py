@@ -8,6 +8,8 @@ from datetime import datetime
 import sys
 from dotenv import load_dotenv
 
+# Load general bot metadata first, then local environment configuration (which can override it)
+load_dotenv('info.env')
 load_dotenv()
 
 # Logging setup
@@ -46,8 +48,11 @@ def load_config():
             'token': os.getenv('DISCORD_BOT_TOKEN'),
             'display_name': os.getenv('BOT_DISPLAY_NAME', '🎵 MusicMaster Bot'),
             'prefix': _env_list('BOT_PREFIX', ['!', '/']),
-            'activity': os.getenv('BOT_ACTIVITY', 'Listening to !info'),
+            'activity': os.getenv('BOT_ACTIVITY', 'Hört auf /info'),
             'version': os.getenv('BOT_VERSION', '0.1.1'),
+            'description': os.getenv('BOT_DESCRIPTION', 'Ein mit Rollen geschützter Musik- und Statistik-Bot'),
+            'support_server': os.getenv('BOT_SUPPORT_SERVER', ''),
+            'github': os.getenv('BOT_GITHUB', ''),
         },
         'database': {
             'type': os.getenv('DB_TYPE', 'sqlite'),
