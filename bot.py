@@ -177,9 +177,15 @@ class MusicBot(commands.Bot):
         logger.info(f'Bot is in {len(self.guilds)} guilds')
         
         # Set bot activity
+        activity_str = config['bot']['activity']
+        name = activity_str
+        for prefix in ["Listening to ", "Hört auf ", "listening to ", "hört auf "]:
+            if name.startswith(prefix):
+                name = name[len(prefix):]
+                break
         activity = discord.Activity(
             type=discord.ActivityType.listening,
-            name=config['bot']['activity'].replace("Listening to ", "")
+            name=name
         )
         await self.change_presence(activity=activity)
         
