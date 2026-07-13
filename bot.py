@@ -119,6 +119,25 @@ class MusicBot(commands.Bot):
         # Load cogs
         await self.load_cogs()
 
+        @self.before_invoke
+        async def before_any_command(ctx):
+            if not ctx.guild:
+                # 1. Try to find a guild where the user is in a voice channel
+                for g in self.guilds:
+                    m = g.get_member(ctx.author.id)
+                    if m and m.voice and m.voice.channel:
+                        ctx.guild = g
+                        ctx.author = m
+                        break
+                # 2. Fallback: find the first guild they share with the bot
+                if not ctx.guild:
+                    for g in self.guilds:
+                        m = g.get_member(ctx.author.id)
+                        if m:
+                            ctx.guild = g
+                            ctx.author = m
+                            break
+
         # Web server for the OAuth2 account-link flow (cogs/account.py)
         from utils.oauth_server import start_oauth_server
         self.oauth_runner = await start_oauth_server(self)
