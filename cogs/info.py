@@ -123,11 +123,11 @@ class Info(commands.Cog):
         #     "💾 Datenbank-Speicherung (MySQL/SQLite)",
         #     "🎵 Warteschlangen-System für Musik"
         # ]
-        embed.add_field(
-            name="✨ Features",
-            value="\n".join(features),
-            inline=False
-        )
+        # embed.add_field(
+        #     name="✨ Features",
+        #     value="\n".join(features),
+        #     inline=False
+        # )
         
         # Note about prefix
         embed.add_field(
