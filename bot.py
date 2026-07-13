@@ -47,6 +47,7 @@ def load_config():
             'display_name': os.getenv('BOT_DISPLAY_NAME', '🎵 MusicMaster Bot'),
             'prefix': _env_list('BOT_PREFIX', ['!', '/']),
             'activity': os.getenv('BOT_ACTIVITY', 'Listening to !info'),
+            'version': os.getenv('BOT_VERSION', '0.1.0'),
         },
         'database': {
             'type': os.getenv('DB_TYPE', 'sqlite'),

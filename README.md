@@ -299,7 +299,7 @@ Deckt u. a. den SSRF-Schutz der Deezer-Link-Auflösung, die CSRF/Replay-Absicher
 
 Alles läuft über `.env` (siehe `.env.example` für alle verfügbaren Variablen und Erklärungen):
 - **Secrets/Verbindung**: `DISCORD_BOT_TOKEN`, `DISCORD_OAUTH_CLIENT_ID/SECRET/REDIRECT_URI`, `SPOTIFY_CLIENT_ID/SECRET`, `DB_TYPE` + MySQL-Zugangsdaten
-- **Bot-Verhalten**: `BOT_PREFIX`, `BOT_DISPLAY_NAME`, `BOT_ACTIVITY`
+- **Bot-Verhalten**: `BOT_PREFIX`, `BOT_DISPLAY_NAME`, `BOT_ACTIVITY`, `BOT_VERSION` (die in `!info` angezeigte Bot-Version, z. B. `0.1.0`)
 - **Musik/Radio**: `MUSIC_DEFAULT_STREAM_URL`, `RADIO_STREAMS` (JSON-Liste), `MUSIC_EMPTY_CHANNEL_TIMEOUT`, `MUSIC_TIMEOUT`
 - **Sonstiges**: `PLAYLISTS_MAX_PER_USER`, `NOTIFICATIONS_SONG_CHANGE_DEFAULT_ENABLED`, `OAUTH_SCOPES`
 

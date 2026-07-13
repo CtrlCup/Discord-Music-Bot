@@ -116,8 +116,9 @@ class Info(commands.Cog):
         )
         
         # Footer
+        version = self.bot.config['bot'].get('version', '0.1.0')
         embed.set_footer(
-            text=f"Bot Version 1.0 | Entwickelt mit ❤️ von Gamerfreak_LP",
+            text=f"Bot Version {version} | Entwickelt mit ❤️ von Gamerfreak_LP",
             icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None
         )
         
@@ -181,8 +182,9 @@ class Info(commands.Cog):
         process = psutil.Process()
         memory_usage = process.memory_info().rss / 1024 / 1024  # Convert to MB
         
+        version = self.bot.config['bot'].get('version', '0.1.0')
         embed = discord.Embed(
-            title="🤖 Bot Informationen",
+            title=f"🤖 Bot Informationen (v{version})",
             color=discord.Color.blue(),
             timestamp=datetime.utcnow()
         )
