@@ -247,6 +247,7 @@ Ohne eingerichteten Reverse-Proxy funktioniert der Rest des Bots (Musik, Radio, 
 | `!stats [@user/name]` | Eigene oder fremde Statistiken (private Zusatzdaten nur bei eigener Abfrage, siehe `!connect`) |
 | `!leaderboard [messages/voice/joins/longest_session]` | Rangliste mit Buttons zum Umschalten zwischen den Kategorien |
 | `!connect` / `!disconnect` | Konto verknüpfen/trennen für private Profildetails |
+| `!bug <nachricht>` | Meldet einen Fehler/Bug direkt an den Entwickler (inkl. deiner letzten Aktionen & Fehler-Logs) |
 
 ### ⚙️ Einstellungen (Admins)
 | Befehl | Beschreibung |

@@ -75,6 +75,7 @@ class Info(commands.Cog):
             "`!leaderboard <messages/voice/joins/longest_session>` - Zeigt die Top 10 Rangliste (mit Umschalt-Buttons)",
             # "`!connect` - Verknüpft dein Discord-Konto per Login für private Zusatzdaten in !stats",
             # "`!disconnect` - Entfernt die Konto-Verknüpfung wieder"
+            "`!bug <nachricht>` - Meldet einen Fehler/Bug direkt an den Entwickler"
         ]
         embed.add_field(
             name="📊 Statistik-Befehle",

@@ -31,6 +31,7 @@ This is a feature-rich, self-hosted Discord bot that handles music streaming (fr
   - `account.py`: Commands for `!connect` / `!disconnect` (linking Discord account to stats database via OAuth2).
   - `settings.py`: Guild-specific settings (e.g. announcement channel and toggles).
   - `info.py`: Help commands, bot status/ping, and invite links.
+  - `bug.py`: Bug reporting system that automatically collects user action logs and sends them to the developer.
 - `utils/`:
   - `database.py`: Database connection abstraction layer (SQLite & MySQL).
   - `db_operations.py`: Implementation of SQL operations for statistics tracking.
