@@ -44,15 +44,9 @@ class MusicAdvanced(commands.Cog):
         if not any_playing:
             try:
                 # Reset presence to default activity
-                activity_str = self.bot.config['bot']['activity']
-                name = activity_str
-                for prefix in ["Listening to ", "Hört auf ", "listening to ", "hört auf "]:
-                    if name.startswith(prefix):
-                        name = name[len(prefix):]
-                        break
                 activity = discord.Activity(
                     type=discord.ActivityType.listening,
-                    name=name
+                    name=self.bot.config['bot']['activity']
                 )
                 await self.bot.change_presence(activity=activity)
                 logger.info("Bot presence reset to default")
