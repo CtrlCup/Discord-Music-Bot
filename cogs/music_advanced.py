@@ -11,6 +11,7 @@ from utils.music_utils import YTDLSource, AdvancedMusicQueue, GuildMusicState, I
 from utils.database import Database
 from utils.db_operations import DatabaseOperations
 from utils import track_resolver
+from utils.permissions import is_user_check
 
 logger = logging.getLogger('discord_bot.music_advanced')
 
@@ -32,6 +33,66 @@ class MusicAdvanced(commands.Cog):
             for task in state.empty_timers.values():
                 task.cancel()
     
+    async def _check_and_reset_presence(self):
+        """Checks if any voice clients are playing. If not, resets presence to default."""
+        any_playing = False
+        for vc in self.bot.voice_clients:
+            if vc.is_playing() or vc.is_paused():
+                any_playing = True
+                break
+        
+        if not any_playing:
+            try:
+                # Reset presence to default activity
+                activity_str = self.bot.config['bot']['activity']
+                name = activity_str
+                for prefix in ["Listening to ", "Hört auf ", "listening to ", "hört auf "]:
+                    if name.startswith(prefix):
+                        name = name[len(prefix):]
+                        break
+                activity = discord.Activity(
+                    type=discord.ActivityType.listening,
+                    name=name
+                )
+                await self.bot.change_presence(activity=activity)
+                logger.info("Bot presence reset to default")
+            except Exception:
+                logger.exception("Presence-Reset fehlgeschlagen")
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        """Track bot voice channel state and clean up resources on disconnect"""
+        if member == self.bot.user:
+            # If the bot was disconnected from a channel
+            if before.channel is not None and after.channel is None:
+                logger.info(f"Bot disconnected from voice channel {before.channel.name} in guild {before.channel.guild.name}")
+                state = self.get_guild_state(before.channel.guild.id)
+                # Clean up this channel's state
+                state.cleanup_channel(before.channel.id)
+                if before.channel.id in state.voice_clients:
+                    del state.voice_clients[before.channel.id]
+                
+                # Check and reset presence if no longer playing anything
+                await self._check_and_reset_presence()
+            
+            # If the bot was moved from one channel to another
+            elif before.channel is not None and after.channel is not None and before.channel != after.channel:
+                logger.info(f"Bot moved from voice channel {before.channel.name} to {after.channel.name} in guild {after.channel.guild.name}")
+                state = self.get_guild_state(after.channel.guild.id)
+                # Transfer state mapping to the new channel ID
+                if before.channel.id in state.voice_clients:
+                    vc = state.voice_clients.pop(before.channel.id)
+                    state.voice_clients[after.channel.id] = vc
+                if before.channel.id in state.queues:
+                    state.queues[after.channel.id] = state.queues.pop(before.channel.id)
+                if before.channel.id in state.now_playing_messages:
+                    state.now_playing_messages[after.channel.id] = state.now_playing_messages.pop(before.channel.id)
+                if before.channel.id in state.skip_votes:
+                    state.skip_votes[after.channel.id] = state.skip_votes.pop(before.channel.id)
+                if before.channel.id in state.empty_timers:
+                    timer = state.empty_timers.pop(before.channel.id)
+                    state.empty_timers[after.channel.id] = timer
+
     def get_guild_state(self, guild_id) -> GuildMusicState:
         if guild_id not in self.guild_states:
             self.guild_states[guild_id] = GuildMusicState(guild_id)
@@ -132,6 +193,7 @@ class MusicAdvanced(commands.Cog):
                 await vc.guild.voice_client.disconnect()
                 state = self.get_guild_state(guild_id)
                 state.cleanup_channel(channel_id)
+                await self._check_and_reset_presence()
     
     @check_empty_channels.before_loop
     async def before_check_empty_channels(self):
@@ -282,13 +344,16 @@ class MusicAdvanced(commands.Cog):
                     await self.play_next(ctx, voice_channel_id)
             else:
                 # No more songs, wait before disconnecting
+                await self._check_and_reset_presence()
                 timeout = self.bot.config['music'].get('timeout', 300)
                 await asyncio.sleep(timeout)
                 if vc and not vc.is_playing() and len(queue.queue) == 0:
                     await vc.disconnect()
                     state.cleanup_channel(voice_channel_id)
+                    await self._check_and_reset_presence()
     
     @commands.hybrid_command(name='play', aliases=['p'])
+    @is_user_check()
     async def play(self, ctx, *, query: str = None):
         """Spielt einen Song/Link (YouTube, Spotify, Deezer) oder ohne Angabe den Standard-Radiostream"""
         vc = await self.get_voice_client_for_user(ctx)
@@ -434,6 +499,7 @@ class MusicAdvanced(commands.Cog):
                 await ctx.send(f"❌ Fehler: {str(e)}")
 
     @commands.hybrid_group(name='radio', invoke_without_command=True)
+    @is_user_check()
     async def radio(self, ctx):
         """Zeigt die verfügbaren Internet-Radiosender (siehe auch `!radio play <name>`)"""
         await ctx.invoke(self.radio_list)
@@ -478,6 +544,7 @@ class MusicAdvanced(commands.Cog):
             await self.play_next(ctx, vc.channel.id)
 
     @commands.hybrid_command(name='queue', aliases=['q', 'list'])
+    @is_user_check()
     async def queue_command(self, ctx, page: int = 1):
         """Zeigt die aktuelle Warteschlange"""
         if not ctx.voice_client:
@@ -539,6 +606,7 @@ class MusicAdvanced(commands.Cog):
         await ctx.send(embed=embed)
     
     @commands.hybrid_command(name='remove', aliases=['rm'])
+    @is_user_check()
     async def remove(self, ctx, position: int):
         """Entfernt einen Song aus der Warteschlange"""
         if not ctx.voice_client:
@@ -554,6 +622,7 @@ class MusicAdvanced(commands.Cog):
             await ctx.send("❌ Ungültige Position!")
     
     @commands.hybrid_command(name='clear')
+    @is_user_check()
     async def clear(self, ctx):
         """Leert die gesamte Warteschlange"""
         if not ctx.voice_client:
@@ -566,6 +635,7 @@ class MusicAdvanced(commands.Cog):
         await ctx.send("🗑️ Warteschlange geleert!")
     
     @commands.hybrid_command(name='move')
+    @is_user_check()
     async def move(self, ctx, from_pos: int, to_pos: int):
         """Verschiebt einen Song in der Warteschlange"""
         if not ctx.voice_client:
@@ -580,6 +650,7 @@ class MusicAdvanced(commands.Cog):
             await ctx.send("❌ Ungültige Positionen!")
     
     @commands.hybrid_command(name='shuffle')
+    @is_user_check()
     async def shuffle(self, ctx):
         """Mischt die Warteschlange"""
         if not ctx.voice_client:
@@ -592,6 +663,7 @@ class MusicAdvanced(commands.Cog):
         await ctx.send("🔀 Warteschlange gemischt!")
     
     @commands.hybrid_command(name='loop')
+    @is_user_check()
     async def loop(self, ctx, mode: str = None):
         """Aktiviert/Deaktiviert Loop-Modus (song/queue/off)"""
         if not ctx.voice_client:
@@ -617,6 +689,7 @@ class MusicAdvanced(commands.Cog):
             await ctx.send(f"🔁 Loop-Status: **{status}**\nNutze `!loop song/queue/off`")
     
     @commands.hybrid_command(name='nowplaying', aliases=['np'])
+    @is_user_check()
     async def nowplaying(self, ctx):
         """Zeigt den aktuell spielenden Song"""
         if not ctx.voice_client or not ctx.voice_client.is_playing():
@@ -654,6 +727,7 @@ class MusicAdvanced(commands.Cog):
             await ctx.send(embed=embed)
     
     @commands.hybrid_command(name='skip', aliases=['next'])
+    @is_user_check()
     async def skip(self, ctx):
         """Überspringt den aktuellen Song"""
         if ctx.voice_client and ctx.voice_client.is_playing():
@@ -676,6 +750,7 @@ class MusicAdvanced(commands.Cog):
             await ctx.send("❌ Es läuft gerade keine Musik!")
     
     @commands.hybrid_command(name='previous', aliases=['prev'])
+    @is_user_check()
     async def previous(self, ctx):
         """Spielt den vorherigen Song"""
         if not ctx.voice_client:
@@ -694,6 +769,7 @@ class MusicAdvanced(commands.Cog):
             await ctx.send("❌ Kein vorheriger Song verfügbar!")
     
     @commands.hybrid_command(name='stop')
+    @is_user_check()
     async def stop(self, ctx):
         """Stoppt die Musik und leert die Warteschlange"""
         if not ctx.voice_client:
@@ -715,8 +791,10 @@ class MusicAdvanced(commands.Cog):
         state.cleanup_channel(channel_id)
         
         await ctx.send("⏹️ Musik gestoppt und Warteschlange geleert!")
+        await self._check_and_reset_presence()
     
     @commands.hybrid_command(name='pause')
+    @is_user_check()
     async def pause(self, ctx):
         """Pausiert die aktuelle Wiedergabe"""
         if ctx.voice_client and ctx.voice_client.is_playing():
@@ -726,6 +804,7 @@ class MusicAdvanced(commands.Cog):
             await ctx.send("❌ Es läuft gerade keine Musik!")
     
     @commands.hybrid_command(name='resume')
+    @is_user_check()
     async def resume(self, ctx):
         """Setzt die pausierte Wiedergabe fort"""
         if ctx.voice_client and ctx.voice_client.is_paused():
@@ -735,6 +814,7 @@ class MusicAdvanced(commands.Cog):
             await ctx.send("❌ Die Wiedergabe ist nicht pausiert!")
     
     @commands.hybrid_command(name='volume', aliases=['vol'])
+    @is_user_check()
     async def volume(self, ctx, volume: int = None):
         """Ändert die Lautstärke (0-100)"""
         if not ctx.voice_client:

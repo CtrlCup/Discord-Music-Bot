@@ -6,6 +6,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.database import Database
+from utils.permissions import is_user_check
 
 logger = logging.getLogger('discord_bot.playlists')
 
@@ -318,6 +319,7 @@ class Playlists(commands.Cog):
                     } for row in rows]
     
     @commands.hybrid_group(name='playlist', aliases=['pl'], invoke_without_command=True)
+    @is_user_check()
     async def playlist(self, ctx):
         """Playlist-Verwaltung"""
         embed = discord.Embed(
@@ -452,6 +454,7 @@ class Playlists(commands.Cog):
             await ctx.send("❌ Playlist nicht gefunden oder Fehler beim Löschen!")
     
     @commands.hybrid_command(name='favorite', aliases=['fav'])
+    @is_user_check()
     async def favorite(self, ctx):
         """Fügt den aktuellen Song zu deinen Favoriten hinzu"""
         
@@ -482,6 +485,7 @@ class Playlists(commands.Cog):
             await ctx.send("❌ Fehler beim Hinzufügen zu Favoriten!")
     
     @commands.hybrid_command(name='favorites', aliases=['favs'])
+    @is_user_check()
     async def favorites(self, ctx):
         """Zeigt deine Lieblingssongs"""
         

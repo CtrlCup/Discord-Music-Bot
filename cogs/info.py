@@ -4,6 +4,9 @@ import platform
 from datetime import datetime
 import psutil
 import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.permissions import is_user_check, is_supporter_check, has_role_or_higher
 
 class Info(commands.Cog):
     def __init__(self, bot):
@@ -12,20 +15,33 @@ class Info(commands.Cog):
     @commands.hybrid_command(name='info', aliases=['help', 'hilfe'])
     async def info(self, ctx):
         """Zeigt alle verfügbaren Befehle und Informationen zum Bot"""
-        
+        is_admin = await has_role_or_higher(ctx, 'admin')
+        is_supporter = await has_role_or_higher(ctx, 'supporter')
+        is_user = await has_role_or_higher(ctx, 'user')
+
+        if not is_user:
+            embed = discord.Embed(
+                title="❌ Keine Berechtigung",
+                description="Du hast leider keine ausreichende Rolle, um diesen Bot zu nutzen. Bitte wende dich an einen Administrator.",
+                color=discord.Color.red()
+            )
+            return await ctx.send(embed=embed, ephemeral=True)
+
+        display_name = self.bot.config['bot'].get('display_name', 'Bot')
         embed = discord.Embed(
-            title="🤖 Bot Information",
-            description="Ein multifunktionaler Discord Bot mit Musik- und Statistikfunktionen",
+            #🤖
+            title=f" {display_name}'s Information",
+            #description="Ein mit Rollen geschützter Musik- und Statistik-Bot",
             color=discord.Color.green(),
             timestamp=datetime.utcnow()
         )
         
         # Bot creator info
-        embed.add_field(
-            name="👨‍💻 Entwickler",
-            value="**Gamerfreak_LP aka Alex**",
-            inline=False
-        )
+        # embed.add_field(
+        #     name="👨‍💻 Entwickler",
+        #     value="**Gamerfreak_LP aka Alex**",
+        #     inline=False
+        # )
         
         # Music commands
         music_commands = [
@@ -57,8 +73,8 @@ class Info(commands.Cog):
             "`!stats <@user/name>` - Schickt dir die Statistiken eines anderen Benutzers per Direktnachricht",
             "`!stats` direkt per Bot-DM - Zeigt zusätzlich deine privaten Details bei Verknüpfung",
             "`!leaderboard <messages/voice/joins/longest_session>` - Zeigt die Top 10 Rangliste (mit Umschalt-Buttons)",
-            "`!connect` - Verknüpft dein Discord-Konto per Login für private Zusatzdaten in !stats",
-            "`!disconnect` - Entfernt die Konto-Verknüpfung wieder"
+            # "`!connect` - Verknüpft dein Discord-Konto per Login für private Zusatzdaten in !stats",
+            # "`!disconnect` - Entfernt die Konto-Verknüpfung wieder"
         ]
         embed.add_field(
             name="📊 Statistik-Befehle",
@@ -66,43 +82,47 @@ class Info(commands.Cog):
             inline=False
         )
 
-        # Settings commands
-        settings_commands = [
-            "`!settings show` - Zeigt die aktuellen Server-Einstellungen",
-            "`!settings announce #kanal` - Setzt den Kanal für Songwechsel-Ankündigungen",
-            "`!settings announce_toggle on/off` - Schaltet Songwechsel-Ankündigungen an/aus"
-        ]
-        embed.add_field(
-            name="⚙️ Einstellungen (nur Admins)",
-            value="\n".join(settings_commands),
-            inline=False
-        )
+        # Settings commands (Admins only)
+        if is_admin:
+            settings_commands = [
+                "`!settings show` - Zeigt die aktuellen Server-Einstellungen",
+                "`!settings announce #kanal` - Setzt den Kanal für Songwechsel-Ankündigungen",
+                "`!settings announce_toggle on/off` - Schaltet Songwechsel-Ankündigungen an/aus",
+                "`!settings setrole <user/supporter/admin> @Rolle` - Zuweisen einer Gruppen-Rolle",
+                "`!settings removerole <user/supporter/admin>` - Zuweisen einer Gruppen-Rolle aufheben"
+            ]
+            embed.add_field(
+                name="⚙️ Einstellungen (nur Admins)",
+                value="\n".join(settings_commands),
+                inline=False
+            )
 
-        # System commands
-        system_commands = [
-            "`!info` / `!help` - Zeigt diese Hilfe",
-            "`!ping` - Zeigt die Bot-Latenz",
-            "`!uptime` - Zeigt die Betriebszeit des Bots",
-            "`!botinfo` - Zeigt technische Bot-Informationen",
-            "`!invite` - Zeigt den Einladungslink für den Bot",
-            "`!version` - Zeigt die aktuelle Version des Bots"
-        ]
-        embed.add_field(
-            name="ℹ️ System-Befehle",
-            value="\n".join(system_commands),
-            inline=False
-        )
+        # System commands (Supporters and Admins only)
+        if is_supporter:
+            system_commands = [
+                "`!info` / `!help` - Zeigt diese Hilfe",
+                "`!ping` - Zeigt die Bot-Latenz",
+                "`!uptime` - Zeigt die Betriebszeit des Bots",
+                "`!botinfo` - Zeigt technische Bot-Informationen",
+                "`!invite` - Zeigt den Einladungslink für den Bot",
+                "`!version` - Zeigt die aktuelle Version des Bots"
+            ]
+            embed.add_field(
+                name="ℹ️ System-Befehle (nur Supporter & Admins)",
+                value="\n".join(system_commands),
+                inline=False
+            )
 
         # Features
-        features = [
-            "✅ YouTube/YouTube Music/Spotify/Deezer Unterstützung",
-            "📻 Internet-Radiosender (konfigurierbar)",
-            "📊 Automatisches Tracking von Statistiken",
-            "🔒 Optionale Konto-Verknüpfung für private Profildaten",
-            "💾 Datenbank-Speicherung (MySQL/SQLite)",
-            "🎵 Warteschlangen-System für Musik",
-            "👥 Multi-Server Unterstützung"
-        ]
+        # features = [
+        #     "✅ Rollen-Berechtigungssystem (User, Supporter, Admin)",
+        #     "✅ YouTube/YouTube Music/Spotify/Deezer Unterstützung",
+        #     "📻 Internet-Radiosender (konfigurierbar)",
+        #     "📊 Automatisches Tracking von Statistiken",
+        #     "🔒 Optionale Konto-Verknüpfung für private Profildaten",
+        #     "💾 Datenbank-Speicherung (MySQL/SQLite)",
+        #     "🎵 Warteschlangen-System für Musik"
+        # ]
         embed.add_field(
             name="✨ Features",
             value="\n".join(features),
@@ -126,6 +146,7 @@ class Info(commands.Cog):
         await ctx.send(embed=embed)
     
     @commands.hybrid_command(name='ping')
+    @is_supporter_check()
     async def ping(self, ctx):
         """Zeigt die Bot-Latenz"""
         latency = round(self.bot.latency * 1000)
@@ -139,6 +160,7 @@ class Info(commands.Cog):
         await ctx.send(embed=embed)
     
     @commands.hybrid_command(name='uptime')
+    @is_supporter_check()
     async def uptime(self, ctx):
         """Zeigt die Betriebszeit des Bots"""
         uptime = datetime.utcnow() - self.bot.start_time
@@ -167,6 +189,7 @@ class Info(commands.Cog):
         await ctx.send(embed=embed)
     
     @commands.hybrid_command(name='botinfo')
+    @is_supporter_check()
     async def botinfo(self, ctx):
         """Zeigt technische Informationen über den Bot"""
         
@@ -226,6 +249,7 @@ class Info(commands.Cog):
         await ctx.send(embed=embed)
     
     @commands.hybrid_command(name='invite')
+    @is_user_check()
     async def invite(self, ctx):
         """Zeigt den Einladungslink für den Bot"""
         
@@ -265,6 +289,7 @@ class Info(commands.Cog):
         await ctx.send(embed=embed)
     
     @commands.hybrid_command(name='version', aliases=['v', 'ver'])
+    @is_supporter_check()
     async def version(self, ctx):
         """Zeigt die aktuelle Version des Bots"""
         version = self.bot.config['bot'].get('version', '0.1.1')

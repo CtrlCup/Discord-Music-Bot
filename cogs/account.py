@@ -8,6 +8,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.database import Database
 from utils.db_operations import DatabaseOperations
 from utils.oauth_server import create_state
+from utils.permissions import is_user_check
 
 logger = logging.getLogger('discord_bot.account')
 
@@ -23,6 +24,7 @@ class Account(commands.Cog):
         return self.bot.oauth_db
 
     @commands.hybrid_command(name='connect')
+    @is_user_check()
     async def connect(self, ctx):
         """Verknüpft dein Discord-Konto per Login, um private Zusatzdaten in !stats freizuschalten"""
         oauth_cfg = self.bot.config.get('oauth', {})
@@ -60,6 +62,7 @@ class Account(commands.Cog):
             )
 
     @commands.hybrid_command(name='disconnect')
+    @is_user_check()
     async def disconnect(self, ctx):
         """Entfernt die Verknüpfung deines Discord-Kontos wieder"""
         await DatabaseOperations.delete_oauth_link(self.db, ctx.author.id)

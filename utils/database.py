@@ -45,6 +45,9 @@ class Database:
             "ALTER TABLE user_stats ADD COLUMN join_count INTEGER DEFAULT 0",
             "ALTER TABLE guild_settings ADD COLUMN announce_channel_id INTEGER",
             "ALTER TABLE guild_settings ADD COLUMN announce_enabled BOOLEAN DEFAULT 1",
+            "ALTER TABLE guild_settings ADD COLUMN user_role_id BIGINT",
+            "ALTER TABLE guild_settings ADD COLUMN supporter_role_id BIGINT",
+            "ALTER TABLE guild_settings ADD COLUMN admin_role_id BIGINT",
         ]
 
         if self.db_type == 'sqlite':
@@ -208,6 +211,9 @@ class Database:
                 max_song_duration INTEGER DEFAULT 3600,
                 announce_channel_id INTEGER,
                 announce_enabled BOOLEAN DEFAULT 1,
+                user_role_id INTEGER,
+                supporter_role_id INTEGER,
+                admin_role_id INTEGER,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """,
@@ -364,6 +370,9 @@ class Database:
                 max_song_duration INT DEFAULT 3600,
                 announce_channel_id BIGINT,
                 announce_enabled BOOLEAN DEFAULT TRUE,
+                user_role_id BIGINT,
+                supporter_role_id BIGINT,
+                admin_role_id BIGINT,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
             """,

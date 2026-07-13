@@ -1,0 +1,29 @@
+# docker-compose.override.yml.example
+#
+# Kopiere diese Datei nach docker-compose.override.yml, um lokale Anpassungen vorzunehmen,
+# OHNE die Hauptdatei docker-compose.yml zu verändern. Dadurch kannst du später
+# problemlos "git pull" ausführen.
+#
+# docker-compose.override.yml wird von Docker Compose automatisch geladen und mit
+# der docker-compose.yml gemergt.
+
+services:
+  bot:
+    # Hier kannst du z.B. andere Port-Mappings definieren:
+    # ports:
+    #   - "127.0.0.1:9000:8080"
+    
+    # Falls du das externe "proxy"-Netzwerk nicht nutzt und Fehlermeldungen beim Start vermeiden willst:
+    # networks:
+    #   - internal
+    # (Dies überschreibt die Netzwerk-Liste für den Bot, sodass "proxy" nicht benötigt wird)
+
+  mysql:
+    # Hier kannst du DB-Einstellungen überschreiben, falls nötig (z.B. Port zum Host freigeben):
+    # ports:
+    #   - "127.0.0.1:3306:3306"
+
+# Falls du das "proxy"-Netzwerk oben auskommentiert hast, musst du es hier ebenfalls überschreiben/leeren:
+# networks:
+#   proxy:
+#     external: false

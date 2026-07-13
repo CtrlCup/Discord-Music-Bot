@@ -248,18 +248,42 @@ Ohne eingerichteten Reverse-Proxy funktioniert der Rest des Bots (Musik, Radio, 
 | `!leaderboard [messages/voice/joins/longest_session]` | Rangliste mit Buttons zum Umschalten zwischen den Kategorien |
 | `!connect` / `!disconnect` | Konto verknüpfen/trennen für private Profildetails |
 
-### ⚙️ Einstellungen (nur Mitglieder mit "Server verwalten")
+### ⚙️ Einstellungen (Admins)
 | Befehl | Beschreibung |
 |--------|-------------|
-| `!settings show` | Aktuelle Server-Einstellungen |
+| `!settings show` | Aktuelle Server-Einstellungen und konfigurierte Gruppen-Rollen anzeigen |
 | `!settings announce #kanal` | Ankündigungskanal für Songwechsel setzen |
 | `!settings announce_toggle on/off` | Songwechsel-Ankündigungen an-/ausschalten |
+| `!settings setrole <user/supporter/admin> @Rolle` | Weist einer Berechtigungsgruppe eine Discord-Rolle zu |
+| `!settings removerole <user/supporter/admin>` | Hebt die Rollenzuweisung für eine Gruppe auf |
 
-### ℹ️ System
+### ℹ️ System (mindestens Supporter-Rechte erforderlich für System-Befehle)
 | Befehl | Beschreibung |
 |--------|-------------|
-| `!info` / `!help` | Zeigt alle verfügbaren Befehle |
-| `!ping` · `!uptime` · `!botinfo` · `!invite` · `!version` | Bot-Status, Einladungslink und Versionsanzeige |
+| `!info` / `!help` | Zeigt alle verfügbaren Befehle (angepasst an die Rechtegruppe des Nutzers) |
+| `!ping` · `!uptime` · `!botinfo` · `!invite` · `!version` | Bot-Status, Einladungslink und Versionsanzeige (nur Supporter/Admins) |
+
+## 👥 Berechtigungssystem & Gruppen-Rollen
+
+Der Bot besitzt ein integriertes Berechtigungssystem, das sich nahtlos über deine bestehenden Discord-Serverrollen steuern lässt. So kannst du Berechtigungen hierarchisch vergeben:
+
+### Gruppen-Hierarchie & Rechte
+
+1. **User (Musik-Nutzer)**
+   * **Rechte:** Kann alle Musik-Steuerungsbefehle (`!play`, `!stop`, `!pause`, `!resume`, `!skip`, `!volume` etc.) sowie Statistiken (`!stats`, `!leaderboard`, `!connect`) nutzen.
+   * **Zuweisung:** `!settings setrole user @Rolle`
+   * **Fallback:** Ist keine User-Rolle zugewiesen, darf **jeder** auf dem Server Musik hören.
+
+2. **Supporter**
+   * **Rechte:** Erbt alle Rechte der *User*-Gruppe und darf zusätzlich technische System-Befehle wie `!ping`, `!uptime`, `!botinfo` und `!version` ausführen.
+   * **Zuweisung:** `!settings setrole supporter @Rolle`
+   * **Fallback:** Ist keine Supporter-Rolle zugewiesen, sind diese Befehle auf Server-Administratoren beschränkt.
+
+3. **Admin**
+   * **Rechte:** Erbt alle Rechte der *Supporter*-Gruppe, darf Server-Einstellungen anpassen und Rollen für die Berechtigungsgruppen verwalten.
+   * **Zuweisung:** `!settings setrole admin @Rolle`
+   * **Fallback:** Mitglieder mit der Discord-Berechtigung `"Server verwalten"` (Manage Guild) oder `"Administrator"` besitzen automatisch Admin-Rechte auf dem Bot.
+
 
 ## 🗂️ Projekt-Struktur
 

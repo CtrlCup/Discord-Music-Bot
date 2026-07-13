@@ -10,6 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.database import Database
 from utils.db_operations import DatabaseOperations
 from utils.oauth_server import refresh_access_token, fetch_discord_user
+from utils.permissions import is_user_check
 
 logger = logging.getLogger('discord_bot.stats')
 
@@ -307,6 +308,7 @@ class Stats(commands.Cog):
         return None
 
     @commands.hybrid_command(name='stats')
+    @is_user_check()
     async def stats(self, ctx, *, target: Optional[str] = None):
         """Zeigt Statistiken eines Benutzers an (wird immer per Direktnachricht verschickt)"""
         is_dm = ctx.guild is None
@@ -553,6 +555,7 @@ class Stats(commands.Cog):
         return embed
 
     @commands.hybrid_command(name='leaderboard', aliases=['lb', 'top'])
+    @is_user_check()
     async def leaderboard(self, ctx, category: str = 'messages'):
         """Zeigt die Rangliste für verschiedene Kategorien (Buttons zum Umschalten inklusive)"""
         resolved = CATEGORY_ALIASES.get(category.lower())

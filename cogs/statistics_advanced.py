@@ -7,6 +7,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.database import Database
+from utils.permissions import is_user_check
 
 logger = logging.getLogger('discord_bot.statistics_advanced')
 
@@ -271,6 +272,7 @@ class StatisticsAdvanced(commands.Cog):
         return " ".join(parts) if parts else "0 Minuten"
     
     @commands.command(name='musicstats')
+    @is_user_check()
     async def music_stats(self, ctx, target: Optional[discord.Member] = None, days: int = 30):
         """Zeigt Musik-Statistiken für einen Benutzer oder dich selbst"""
         
@@ -321,6 +323,7 @@ class StatisticsAdvanced(commands.Cog):
         await ctx.send(embed=embed)
     
     @commands.command(name='topsongs')
+    @is_user_check()
     async def top_songs(self, ctx, days: int = 30):
         """Zeigt die meistgespielten Songs auf dem Server"""
         
@@ -350,6 +353,7 @@ class StatisticsAdvanced(commands.Cog):
         await ctx.send(embed=embed)
     
     @commands.command(name='servermusicstats')
+    @is_user_check()
     async def server_music_stats(self, ctx, days: int = 30):
         """Zeigt Server-weite Musik-Statistiken"""
         
@@ -400,6 +404,7 @@ class StatisticsAdvanced(commands.Cog):
         await ctx.send(embed=embed)
     
     @commands.command(name='listening')
+    @is_user_check()
     async def listening_activity(self, ctx, member: Optional[discord.Member] = None):
         """Zeigt aktuelle Spotify/Discord Aktivität"""
         

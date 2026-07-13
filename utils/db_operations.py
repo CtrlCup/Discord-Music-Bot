@@ -427,33 +427,51 @@ class DatabaseOperations:
 
     @staticmethod
     async def get_guild_settings(db, guild_id: int) -> Dict[str, Any]:
-        """Get announce settings for a guild (defaults if no row exists yet)"""
+        """Get guild settings (defaults if no row exists yet)"""
         if db.db_type == 'sqlite':
             cursor = await db.connection.execute(
-                "SELECT announce_channel_id, announce_enabled FROM guild_settings WHERE guild_id = ?",
+                "SELECT announce_channel_id, announce_enabled, user_role_id, supporter_role_id, admin_role_id FROM guild_settings WHERE guild_id = ?",
                 (guild_id,)
             )
             row = await cursor.fetchone()
             if row:
-                return {'announce_channel_id': row['announce_channel_id'], 'announce_enabled': bool(row['announce_enabled'])}
+                return {
+                    'announce_channel_id': row['announce_channel_id'],
+                    'announce_enabled': bool(row['announce_enabled']) if row['announce_enabled'] is not None else None,
+                    'user_role_id': row['user_role_id'],
+                    'supporter_role_id': row['supporter_role_id'],
+                    'admin_role_id': row['admin_role_id']
+                }
         else:
             async with db.pool.acquire() as conn:
                 async with conn.cursor() as cursor:
                     await cursor.execute(
-                        "SELECT announce_channel_id, announce_enabled FROM guild_settings WHERE guild_id = %s",
+                        "SELECT announce_channel_id, announce_enabled, user_role_id, supporter_role_id, admin_role_id FROM guild_settings WHERE guild_id = %s",
                         (guild_id,)
                     )
                     row = await cursor.fetchone()
                     if row:
-                        return {'announce_channel_id': row[0], 'announce_enabled': bool(row[1])}
+                        return {
+                            'announce_channel_id': row[0],
+                            'announce_enabled': bool(row[1]) if row[1] is not None else None,
+                            'user_role_id': row[2],
+                            'supporter_role_id': row[3],
+                            'admin_role_id': row[4]
+                        }
 
-        return {'announce_channel_id': None, 'announce_enabled': None}
+        return {
+            'announce_channel_id': None,
+            'announce_enabled': None,
+            'user_role_id': None,
+            'supporter_role_id': None,
+            'admin_role_id': None
+        }
 
     @staticmethod
     async def set_guild_setting(db, guild_id: int, **fields):
         """Create/update a guild_settings row, updating only the given keyword fields
-        (allowed: announce_channel_id, announce_enabled)"""
-        allowed = {'announce_channel_id', 'announce_enabled'}
+        (allowed: announce_channel_id, announce_enabled, user_role_id, supporter_role_id, admin_role_id)"""
+        allowed = {'announce_channel_id', 'announce_enabled', 'user_role_id', 'supporter_role_id', 'admin_role_id'}
         updates = {k: v for k, v in fields.items() if k in allowed}
         if not updates:
             return
