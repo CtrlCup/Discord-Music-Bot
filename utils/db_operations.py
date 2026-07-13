@@ -428,36 +428,73 @@ class DatabaseOperations:
     @staticmethod
     async def get_guild_settings(db, guild_id: int) -> Dict[str, Any]:
         """Get guild settings (defaults if no row exists yet)"""
-        if db.db_type == 'sqlite':
-            cursor = await db.connection.execute(
-                "SELECT announce_channel_id, announce_enabled, user_role_id, supporter_role_id, admin_role_id FROM guild_settings WHERE guild_id = ?",
-                (guild_id,)
-            )
-            row = await cursor.fetchone()
-            if row:
-                return {
-                    'announce_channel_id': row['announce_channel_id'],
-                    'announce_enabled': bool(row['announce_enabled']) if row['announce_enabled'] is not None else None,
-                    'user_role_id': row['user_role_id'],
-                    'supporter_role_id': row['supporter_role_id'],
-                    'admin_role_id': row['admin_role_id']
-                }
-        else:
-            async with db.pool.acquire() as conn:
-                async with conn.cursor() as cursor:
-                    await cursor.execute(
-                        "SELECT announce_channel_id, announce_enabled, user_role_id, supporter_role_id, admin_role_id FROM guild_settings WHERE guild_id = %s",
+        try:
+            if db.db_type == 'sqlite':
+                cursor = await db.connection.execute(
+                    "SELECT announce_channel_id, announce_enabled, user_role_id, supporter_role_id, admin_role_id FROM guild_settings WHERE guild_id = ?",
+                    (guild_id,)
+                )
+                row = await cursor.fetchone()
+                if row:
+                    return {
+                        'announce_channel_id': row['announce_channel_id'],
+                        'announce_enabled': bool(row['announce_enabled']) if row['announce_enabled'] is not None else None,
+                        'user_role_id': row['user_role_id'],
+                        'supporter_role_id': row['supporter_role_id'],
+                        'admin_role_id': row['admin_role_id']
+                    }
+            else:
+                async with db.pool.acquire() as conn:
+                    async with conn.cursor() as cursor:
+                        await cursor.execute(
+                            "SELECT announce_channel_id, announce_enabled, user_role_id, supporter_role_id, admin_role_id FROM guild_settings WHERE guild_id = %s",
+                            (guild_id,)
+                        )
+                        row = await cursor.fetchone()
+                        if row:
+                            return {
+                                'announce_channel_id': row[0],
+                                'announce_enabled': bool(row[1]) if row[1] is not None else None,
+                                'user_role_id': row[2],
+                                'supporter_role_id': row[3],
+                                'admin_role_id': row[4]
+                            }
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden aller Einstellungen, versuche Fallback: {e}")
+            try:
+                # Fallback, falls die neuen Rollenspalten noch nicht existieren
+                if db.db_type == 'sqlite':
+                    cursor = await db.connection.execute(
+                        "SELECT announce_channel_id, announce_enabled FROM guild_settings WHERE guild_id = ?",
                         (guild_id,)
                     )
                     row = await cursor.fetchone()
                     if row:
                         return {
-                            'announce_channel_id': row[0],
-                            'announce_enabled': bool(row[1]) if row[1] is not None else None,
-                            'user_role_id': row[2],
-                            'supporter_role_id': row[3],
-                            'admin_role_id': row[4]
+                            'announce_channel_id': row['announce_channel_id'],
+                            'announce_enabled': bool(row['announce_enabled']) if row['announce_enabled'] is not None else None,
+                            'user_role_id': None,
+                            'supporter_role_id': None,
+                            'admin_role_id': None
                         }
+                else:
+                    async with db.pool.acquire() as conn:
+                        async with conn.cursor() as cursor:
+                            await cursor.execute(
+                                "SELECT announce_channel_id, announce_enabled FROM guild_settings WHERE guild_id = %s",
+                                (guild_id,)
+                            )
+                            row = await cursor.fetchone()
+                            if row:
+                                return {
+                                    'announce_channel_id': row[0],
+                                    'announce_enabled': bool(row[1]) if row[1] is not None else None,
+                                    'user_role_id': None,
+                                    'supporter_role_id': None,
+                                    'admin_role_id': None
+                                }
+            except Exception:
+                pass
 
         return {
             'announce_channel_id': None,

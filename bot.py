@@ -210,7 +210,7 @@ class MusicBot(commands.Bot):
             await ctx.send("❌ Dir fehlen die nötigen Berechtigungen für diesen Befehl.")
         else:
             logger.error(f'Unhandled error: {error}')
-            await ctx.send("❌ Ein Fehler ist aufgetreten.")
+            await ctx.send(f"❌ Ein unerwarteter Fehler ist aufgetreten:\n`{error}`")
 
 async def main():
     bot = MusicBot()
