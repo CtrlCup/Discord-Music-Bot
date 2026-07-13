@@ -259,7 +259,7 @@ Ohne eingerichteten Reverse-Proxy funktioniert der Rest des Bots (Musik, Radio, 
 | Befehl | Beschreibung |
 |--------|-------------|
 | `!info` / `!help` | Zeigt alle verfügbaren Befehle |
-| `!ping` · `!uptime` · `!botinfo` · `!invite` | Bot-Status und Einladungslink |
+| `!ping` · `!uptime` · `!botinfo` · `!invite` · `!version` | Bot-Status, Einladungslink und Versionsanzeige |
 
 ## 🗂️ Projekt-Struktur
 

@@ -84,7 +84,8 @@ class Info(commands.Cog):
             "`!ping` - Zeigt die Bot-Latenz",
             "`!uptime` - Zeigt die Betriebszeit des Bots",
             "`!botinfo` - Zeigt technische Bot-Informationen",
-            "`!invite` - Zeigt den Einladungslink für den Bot"
+            "`!invite` - Zeigt den Einladungslink für den Bot",
+            "`!version` - Zeigt die aktuelle Version des Bots"
         ]
         embed.add_field(
             name="ℹ️ System-Befehle",
@@ -261,6 +262,17 @@ class Info(commands.Cog):
             inline=False
         )
         
+        await ctx.send(embed=embed)
+    
+    @commands.hybrid_command(name='version', aliases=['v', 'ver'])
+    async def version(self, ctx):
+        """Zeigt die aktuelle Version des Bots"""
+        version = self.bot.config['bot'].get('version', '0.1.0')
+        embed = discord.Embed(
+            title="ℹ️ Bot Version",
+            description=f"Der Bot läuft aktuell auf Version **v{version}**",
+            color=discord.Color.blue()
+        )
         await ctx.send(embed=embed)
 
 async def setup(bot):
