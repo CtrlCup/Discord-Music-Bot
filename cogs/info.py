@@ -30,7 +30,7 @@ class Info(commands.Cog):
         display_name = self.bot.config['bot'].get('display_name', 'Bot')
         description = self.bot.config['bot'].get('description', '')
         embed = discord.Embed(
-            title=f"🤖 {display_name} Information",
+            title=f"🤖 {display_name}'s Dienste",
             description=description if description else None,
             color=discord.Color.green(),
             timestamp=datetime.utcnow()
