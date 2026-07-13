@@ -20,6 +20,7 @@ This is a feature-rich, self-hosted Discord bot that handles music streaming (fr
 - `Dockerfile` & `docker-compose.yml.example`: Docker configuration template for running the bot and MariaDB.
 - `docker-compose.override.yml.example`: Example template for local configuration overrides.
 - `.env` & `.env.example`: Configuration and environment variables files.
+- `static.env`: Static bot metadata (versions, links, description) tracked in Git.
 - `update_helper.py`: Helper script to pull changes and check configurations for updates.
 - `requirements.txt`: Python package dependencies.
 - `cogs/`:

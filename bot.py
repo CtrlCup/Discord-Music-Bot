@@ -9,7 +9,7 @@ import sys
 from dotenv import load_dotenv
 
 # Load general bot metadata first, then local environment configuration (which can override it)
-load_dotenv('info.env')
+load_dotenv('static.env')
 load_dotenv()
 
 # Logging setup
