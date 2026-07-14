@@ -474,7 +474,6 @@ class Playlists(commands.Cog):
                     } for row in rows]
 
     @commands.hybrid_group(name='playlist', aliases=['pl'], invoke_without_command=True)
-    @commands.guild_only()
     @is_user_check()
     async def playlist(self, ctx):
         """Playlist-Verwaltung"""
@@ -777,7 +776,6 @@ class Playlists(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.hybrid_command(name='favorite', aliases=['fav'])
-    @commands.guild_only()
     @is_user_check()
     async def favorite(self, ctx):
         """Fügt den aktuellen Song zu deinen Favoriten hinzu"""
@@ -809,7 +807,6 @@ class Playlists(commands.Cog):
             await ctx.send("❌ Fehler beim Hinzufügen zu Favoriten!")
     
     @commands.hybrid_command(name='favorites', aliases=['favs'])
-    @commands.guild_only()
     @is_user_check()
     async def favorites(self, ctx):
         """Zeigt deine Lieblingssongs"""

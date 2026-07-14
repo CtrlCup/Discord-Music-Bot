@@ -147,6 +147,9 @@ class MusicBot(commands.Bot):
                             ctx.guild = g
                             ctx.author = m
                             break
+                # If still no guild is found, block execution
+                if not ctx.guild:
+                    raise commands.NoPrivateMessage("Du musst mindestens einen Server mit dem Bot teilen, um Befehle in DMs zu nutzen.")
 
         # Web server for the OAuth2 account-link flow (cogs/account.py)
         from utils.oauth_server import start_oauth_server

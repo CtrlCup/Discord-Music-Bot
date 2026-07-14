@@ -16,39 +16,46 @@ async def has_role_or_higher(ctx, role_type: str) -> bool:
     Hierarchy: Admin > Supporter > User.
     If no User role is configured, User commands are open to everyone.
     """
-    if not ctx.guild:
-        # In DMs, allow User-level commands but reject Supporter/Admin commands
-        return role_type == 'user'
+    guilds_to_check = [ctx.guild] if ctx.guild else ctx.bot.guilds
+    
+    for guild in guilds_to_check:
+        member = guild.get_member(ctx.author.id)
+        if not member:
+            continue
+            
+        # Check permissions in this specific guild
+        if member.guild_permissions.administrator or member.guild_permissions.manage_guild:
+            return True
 
-    # Discord Administrators or users with Manage Guild are always Admins
-    if ctx.author.guild_permissions.administrator or ctx.author.guild_permissions.manage_guild:
+        roles = await get_roles_for_guild(ctx.bot, guild.id)
+        user_roles_ids = [r.id for r in member.roles]
+
+        # Check Admin Role
+        is_admin = roles['admin'] in user_roles_ids if roles['admin'] else False
+        if is_admin:
+            return True
+
+        if role_type == 'admin':
+            continue
+
+        # Check Supporter Role
+        is_supporter = roles['supporter'] in user_roles_ids if roles['supporter'] else False
+        if is_supporter:
+            return True
+
+        if role_type == 'supporter':
+            continue
+
+        # Check User Role
+        # If no User role is configured, anyone can run User commands
+        if not roles['user'] or roles['user'] in user_roles_ids:
+            return True
+            
+    # Fallback for open User commands in DMs if not member of any guild or not matching roles
+    if not ctx.guild and role_type == 'user':
         return True
 
-    roles = await get_roles_for_guild(ctx.bot, ctx.guild.id)
-    user_roles_ids = [r.id for r in ctx.author.roles]
-
-    # Check Admin Role
-    is_admin = roles['admin'] in user_roles_ids if roles['admin'] else False
-    if is_admin:
-        return True
-
-    if role_type == 'admin':
-        return False
-
-    # Check Supporter Role
-    is_supporter = roles['supporter'] in user_roles_ids if roles['supporter'] else False
-    if is_supporter:
-        return True
-
-    if role_type == 'supporter':
-        return False
-
-    # Check User Role
-    # If no User role is configured, anyone can run User commands
-    if not roles['user']:
-        return True
-
-    return roles['user'] in user_roles_ids
+    return False
 
 # Custom check decorators for commands
 def is_admin_check():
