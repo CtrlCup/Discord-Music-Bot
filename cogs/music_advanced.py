@@ -551,7 +551,7 @@ class MusicAdvanced(commands.Cog):
         if not vc.is_playing() and not vc.is_paused():
             await self.play_next(ctx, vc.channel.id)
 
-    @commands.hybrid_command(name='queue', aliases=['q', 'list'])
+    @commands.hybrid_command(name='queue', aliases=['q'])
     @is_user_check()
     async def queue_command(self, ctx, page: int = 1):
         """Zeigt die aktuelle Warteschlange"""
@@ -612,6 +612,12 @@ class MusicAdvanced(commands.Cog):
         )
         
         await ctx.send(embed=embed)
+
+    @commands.hybrid_command(name='list')
+    @is_user_check()
+    async def list_command(self, ctx, page: int = 1):
+        """Zeigt die aktuelle Warteschlange (Alias für /queue)"""
+        await self.queue_command(ctx, page)
     
     @commands.hybrid_command(name='remove', aliases=['rm'])
     @is_user_check()
