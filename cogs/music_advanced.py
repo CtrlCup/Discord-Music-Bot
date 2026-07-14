@@ -61,6 +61,18 @@ class MusicAdvanced(commands.Cog):
             if before.channel is not None and after.channel is None:
                 logger.info(f"Bot disconnected from voice channel {before.channel.name} in guild {before.channel.guild.name}")
                 state = self.get_guild_state(before.channel.guild.id)
+                
+                # Clear queue to stop internal play state
+                queue = state.get_queue(before.channel.id)
+                queue.clear()
+                
+                # Try to stop audio if still playing
+                if before.channel.guild.voice_client:
+                    try:
+                        before.channel.guild.voice_client.stop()
+                    except Exception:
+                        pass
+                
                 # Clean up this channel's state
                 state.cleanup_channel(before.channel.id)
                 if before.channel.id in state.voice_clients:
@@ -186,8 +198,17 @@ class MusicAdvanced(commands.Cog):
         if guild:
             vc = guild.get_channel(channel_id)
             if vc and vc.guild.voice_client and vc.guild.voice_client.channel.id == channel_id:
-                await vc.guild.voice_client.disconnect()
                 state = self.get_guild_state(guild_id)
+                # Clear queue to stop internal play state
+                queue = state.get_queue(channel_id)
+                queue.clear()
+                # Try to stop audio if still playing
+                try:
+                    vc.guild.voice_client.stop()
+                except Exception:
+                    pass
+                
+                await vc.guild.voice_client.disconnect()
                 state.cleanup_channel(channel_id)
                 await self._check_and_reset_presence()
     
