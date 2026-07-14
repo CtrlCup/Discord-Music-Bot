@@ -566,10 +566,21 @@ class MusicAdvanced(commands.Cog):
 
         state = self.get_guild_state(ctx.guild.id)
         queue = state.get_queue(vc.channel.id)
-        queue.add(self._make_stream_song(stream, ctx.author))
-        await ctx.send(f"📻 **{stream['title']}** zur Warteschlange hinzugefügt!")
+        
+        # Stream-Song vorbereiten
+        stream_song = self._make_stream_song(stream, ctx.author)
+        
+        # Loop deaktivieren für den Wechsel
+        queue.loop = False
+        
+        # An erster Stelle der Warteschlange einfügen
+        queue.queue.insert(0, stream_song)
 
-        if not vc.is_playing() and not vc.is_paused():
+        if vc.is_playing() or vc.is_paused():
+            await ctx.send(f"📻 Wechsel direkt zu Radiosender **{stream['title']}**...")
+            vc.stop()
+        else:
+            await ctx.send(f"📻 Spiele Radiosender **{stream['title']}**...")
             await self.play_next(ctx, vc.channel.id)
 
     @commands.hybrid_command(name='queue', aliases=['q'])
@@ -783,6 +794,12 @@ class MusicAdvanced(commands.Cog):
             await ctx.send("⏭️ Song übersprungen!")
         else:
             await ctx.send("❌ Es läuft gerade keine Musik!")
+
+    @commands.hybrid_command(name='next')
+    @is_user_check()
+    async def next_command(self, ctx):
+        """Überspringt den aktuellen Song (Alias für /skip)"""
+        await self.skip(ctx)
     
     @commands.hybrid_command(name='previous', aliases=['prev'])
     @is_user_check()
