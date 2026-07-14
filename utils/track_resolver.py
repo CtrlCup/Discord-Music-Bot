@@ -10,7 +10,7 @@ logger = logging.getLogger('discord_bot.track_resolver')
 
 SPOTIFY_RE = re.compile(r'open\.spotify\.com/(?:intl-\w+/)?(track|album|playlist)/([a-zA-Z0-9]+)')
 DEEZER_RE = re.compile(r'deezer\.com/(?:\w+/)?(track|album|playlist)/(\d+)')
-DEEZER_SHORTLINK_HOSTS = {'deezer.page.link'}
+DEEZER_SHORTLINK_HOSTS = {'deezer.page.link', 'link.deezer.com'}
 
 MAX_TRACKS = 50
 HTTP_TIMEOUT = aiohttp.ClientTimeout(total=10)
@@ -118,11 +118,20 @@ async def resolve(config: dict, query: str):
     spotify_match = SPOTIFY_RE.search(query)
     if spotify_match:
         kind, item_id = spotify_match.groups()
-        return await _resolve_spotify(config.get('spotify', {}), kind, item_id)
+        spotify_cfg = config.get('spotify', {})
+        if not spotify_cfg.get('client_id') or not spotify_cfg.get('client_secret'):
+            raise ValueError("Spotify-Integration ist nicht konfiguriert (SPOTIFY_CLIENT_ID/SECRET fehlt in den Einstellungen).")
+        res = await _resolve_spotify(spotify_cfg, kind, item_id)
+        if res is None:
+            raise ValueError("Konnte keine Songs zu diesem Spotify-Link finden (API-Abfrage fehlgeschlagen).")
+        return res
 
     deezer_match = DEEZER_RE.search(query)
     if deezer_match:
         kind, item_id = deezer_match.groups()
-        return await _resolve_deezer(kind, item_id)
+        res = await _resolve_deezer(kind, item_id)
+        if res is None:
+            raise ValueError("Konnte keine Songs zu diesem Deezer-Link finden (API-Abfrage oder ID ungültig).")
+        return res
 
     return None

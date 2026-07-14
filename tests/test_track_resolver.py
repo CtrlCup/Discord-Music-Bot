@@ -1,5 +1,5 @@
 import unittest
-from utils.track_resolver import _is_deezer_shortlink, SPOTIFY_RE, DEEZER_RE
+from utils.track_resolver import _is_deezer_shortlink, SPOTIFY_RE, DEEZER_RE, resolve
 
 
 class TestDeezerShortlinkSSRFGuard(unittest.TestCase):
@@ -44,6 +44,21 @@ class TestLinkPatterns(unittest.TestCase):
         query = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         self.assertIsNone(SPOTIFY_RE.search(query))
         self.assertIsNone(DEEZER_RE.search(query))
+
+
+
+class TestResolveExceptions(unittest.IsolatedAsyncioTestCase):
+    async def test_spotify_unconfigured_raises_value_error(self):
+        config = {'spotify': {'client_id': '', 'client_secret': ''}}
+        with self.assertRaises(ValueError) as context:
+            await resolve(config, "https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC")
+        self.assertIn("Spotify-Integration ist nicht konfiguriert", str(context.exception))
+
+    async def test_deezer_invalid_raises_value_error(self):
+        config = {}
+        with self.assertRaises(ValueError) as context:
+            await resolve(config, "https://www.deezer.com/track/999999999999999999")
+        self.assertIn("Konnte keine Songs zu diesem Deezer-Link finden", str(context.exception))
 
 
 if __name__ == '__main__':

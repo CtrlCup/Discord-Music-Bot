@@ -1,12 +1,14 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import json
 import logging
 import asyncio
 import os
 from datetime import datetime
 import sys
+import time
 from dotenv import load_dotenv
+
 
 # Load general bot metadata first, then local environment configuration (which can override it)
 load_dotenv('static.env')
@@ -113,6 +115,9 @@ class MusicBot(commands.Bot):
         self.db = None
         self.oauth_db = None
         self.oauth_runner = None
+        self._last_activity_time = time.time()
+        self._current_status = discord.Status.offline
+        self._current_activity = None
 
     async def setup_hook(self):
         # Shared DB handle (initialized before loading cogs so they can access self.bot.db)
@@ -148,6 +153,7 @@ class MusicBot(commands.Bot):
         self.oauth_runner = await start_oauth_server(self)
 
         await self._sync_app_commands()
+        self.presence_check_loop.start()
 
     async def _sync_app_commands(self):
         """Registriert alle Hybrid-Commands (siehe Cogs) als Discord Slash-Commands (/).
@@ -235,6 +241,55 @@ class MusicBot(commands.Bot):
         else:
             logger.error(f'Unhandled error: {error}')
             await ctx.send(f"❌ Ein unerwarteter Fehler ist aufgetreten:\n`{error}`")
+
+    async def change_presence(self, *, activity=None, status=None, shard_id=None):
+        if status is not None:
+            self._current_status = status
+        if activity is not None:
+            self._current_activity = activity
+        await super().change_presence(activity=activity, status=status, shard_id=shard_id)
+
+    def reset_activity_timer(self):
+        self._last_activity_time = time.time()
+
+    @tasks.loop(seconds=10)
+    async def presence_check_loop(self):
+        await self.update_presence()
+
+    async def update_presence(self):
+        is_playing = False
+        for vc in self.voice_clients:
+            if vc.is_connected() and (vc.is_playing() or vc.is_paused()):
+                is_playing = True
+                break
+
+        current_time = time.time()
+        time_since_activity = current_time - self._last_activity_time
+        in_grace_period = time_since_activity < 120
+
+        if is_playing:
+            status = discord.Status.online
+            activity = self.activity
+        elif in_grace_period:
+            status = discord.Status.online
+            activity = discord.Activity(
+                type=discord.ActivityType.listening,
+                name=self.config['bot']['activity']
+            )
+        else:
+            status = discord.Status.offline
+            activity = None
+
+        if self._current_status != status or self._current_activity != activity:
+            await self.change_presence(status=status, activity=activity)
+
+    async def on_command(self, ctx):
+        self.reset_activity_timer()
+        await self.update_presence()
+
+    async def on_interaction(self, interaction):
+        self.reset_activity_timer()
+        await self.update_presence()
 
 async def main():
     bot = MusicBot()

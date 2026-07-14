@@ -67,6 +67,7 @@ class MusicAdvanced(commands.Cog):
                     del state.voice_clients[before.channel.id]
                 
                 # Check and reset presence if no longer playing anything
+                self.bot.reset_activity_timer()
                 await self._check_and_reset_presence()
             
             # If the bot was moved from one channel to another
@@ -132,7 +133,8 @@ class MusicAdvanced(commands.Cog):
         auf mehreren Servern zeigt sie daher immer nur den zuletzt gestarteten Song."""
         try:
             await self.bot.change_presence(
-                activity=discord.Activity(type=discord.ActivityType.listening, name=title)
+                activity=discord.Activity(type=discord.ActivityType.listening, name=title),
+                status=discord.Status.online
             )
         except Exception:
             logger.exception("Presence-Update fehlgeschlagen")
