@@ -622,21 +622,30 @@ class Playlists(commands.Cog):
                     if not resolved_queries:
                         return await ctx.send("❌ Konnte keine Songs zu diesem Link finden.")
                     added = 0
+                    failed_songs = []
                     for resolved_query in resolved_queries:
+                        display_name = resolved_query
+                        if display_name.startswith("ytsearch1:"):
+                            display_name = display_name[len("ytsearch1:"):]
+                        
                         try:
                             entry_data = await self.bot.loop.run_in_executor(
                                 None, lambda q=resolved_query: ytdl.extract_info(q, download=False)
                             )
-                            entry = entry_data['entries'][0] if 'entries' in entry_data else entry_data
+                            entry = entry_data['entries'][0] if 'entries' in entry_data and entry_data['entries'] else entry_data
                             if not entry:
+                                failed_songs.append(display_name)
                                 continue
                             title = entry.get('title', 'Unknown')
                             url = f"https://www.youtube.com/watch?v={entry.get('id', '')}"
                             duration = entry.get('duration')
                             if await self.add_song_to_playlist(playlist['id'], title, url, duration):
                                 added += 1
+                            else:
+                                failed_songs.append(display_name)
                         except Exception:
                             logger.exception(f"Fehler beim Auflösen/Hinzufügen von {resolved_query}")
+                            failed_songs.append(display_name)
                     
                     if added == 0:
                         await ctx.send("❌ Konnte keine Songs zur Playlist hinzufügen.")
@@ -644,6 +653,12 @@ class Playlists(commands.Cog):
                         await ctx.send(f"✅ Song wurde zur Playlist **{playlist_name}** hinzugefügt!")
                     else:
                         await ctx.send(f"✅ {added} Songs wurden zur Playlist **{playlist_name}** hinzugefügt!")
+
+                    if failed_songs:
+                        failed_str = ", ".join(f"**{s}**" for s in failed_songs[:10])
+                        if len(failed_songs) > 10:
+                            failed_str += f" und {len(failed_songs) - 10} weitere"
+                        await ctx.send(f"⚠️ Folgende Songs konnten auf YouTube nicht gefunden werden: {failed_str}")
                 else:
                     entry_data = await self.bot.loop.run_in_executor(
                         None, lambda: ytdl.extract_info(query, download=False)

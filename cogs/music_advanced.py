@@ -379,13 +379,19 @@ class MusicAdvanced(commands.Cog):
 
                     added = 0
                     last_title = None
+                    failed_songs = []
                     for resolved_query in resolved_queries:
+                        display_name = resolved_query
+                        if display_name.startswith("ytsearch1:"):
+                            display_name = display_name[len("ytsearch1:"):]
+                        
                         try:
                             entry_data = await self.bot.loop.run_in_executor(
                                 None, lambda q=resolved_query: ytdl.extract_info(q, download=False)
                             )
-                            entry = entry_data['entries'][0] if 'entries' in entry_data else entry_data
+                            entry = entry_data['entries'][0] if 'entries' in entry_data and entry_data['entries'] else entry_data
                             if not entry:
+                                failed_songs.append(display_name)
                                 continue
                             song_data = {
                                 'url': f"https://www.youtube.com/watch?v={entry.get('id', '')}",
@@ -398,16 +404,22 @@ class MusicAdvanced(commands.Cog):
                             last_title = song_data['title']
                         except Exception:
                             logger.exception(f"Fehler beim Auflösen von {resolved_query}")
+                            failed_songs.append(display_name)
 
                     if added == 0:
                         await ctx.send("❌ Konnte keine Songs zu diesem Link finden.")
-                        return
                     elif added == 1:
                         await ctx.send(f"✅ **{last_title}** zur Warteschlange hinzugefügt!")
                     else:
                         await ctx.send(f"✅ {added} Songs zur Warteschlange hinzugefügt!")
 
-                    if not vc.is_playing() and not vc.is_paused():
+                    if failed_songs:
+                        failed_str = ", ".join(f"**{s}**" for s in failed_songs[:10])
+                        if len(failed_songs) > 10:
+                            failed_str += f" und {len(failed_songs) - 10} weitere"
+                        await ctx.send(f"⚠️ Folgende Songs konnten auf YouTube nicht gefunden werden: {failed_str}")
+
+                    if added > 0 and not vc.is_playing() and not vc.is_paused():
                         await self.play_next(ctx, vc.channel.id)
                     return
 
