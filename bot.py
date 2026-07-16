@@ -96,6 +96,12 @@ def load_config():
 config = load_config()
 
 class MusicBot(commands.Bot):
+    # Wie lange die Online-Anzeige nach dem Verlassen des letzten Sprachkanals bzw.
+    # nach dem letzten Befehl/Interaktion noch gehalten wird, bevor der Bot als
+    # offline angezeigt wird (Sekunden).
+    VOICE_OFFLINE_DELAY = 120
+    COMMAND_OFFLINE_DELAY = 30
+
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
@@ -115,7 +121,10 @@ class MusicBot(commands.Bot):
         self.db = None
         self.oauth_db = None
         self.oauth_runner = None
-        self._last_activity_time = time.time()
+        self._voice_grace_until = 0.0    # monotonic timestamp; online until this while nobody's in voice
+        self._command_grace_until = 0.0  # monotonic timestamp; online until this after the last command/interaction
+        self._was_voice_connected = False
+        self._playing_activity = None    # current "Hört <Songtitel>" activity while actively playing, else None
         self._current_status = discord.Status.offline
         self._current_activity = None
 
@@ -208,14 +217,7 @@ class MusicBot(commands.Bot):
     async def on_ready(self):
         logger.info(f'{self.user} ({config["bot"]["display_name"]}) has connected to Discord!')
         logger.info(f'Bot is in {len(self.guilds)} guilds')
-        
-        # Set bot activity
-        activity = discord.Activity(
-            type=discord.ActivityType.listening,
-            name=config['bot']['activity']
-        )
-        await self.change_presence(activity=activity)
-        
+
         # Try to set nickname to display_name if possible
         for guild in self.guilds:
             try:
@@ -252,30 +254,44 @@ class MusicBot(commands.Bot):
             self._current_activity = activity
         await super().change_presence(activity=activity, status=status, shard_id=shard_id)
 
-    def reset_activity_timer(self):
-        self._last_activity_time = time.time()
+    def mark_command_activity(self):
+        """Called on every command/interaction: keeps the bot visibly online for COMMAND_OFFLINE_DELAY seconds."""
+        self._command_grace_until = time.monotonic() + self.COMMAND_OFFLINE_DELAY
+
+    def set_playing_activity(self, activity):
+        """Called by music_advanced.py when a song/stream starts, so update_presence() shows it while connected."""
+        self._playing_activity = activity
+
+    def clear_playing_activity(self):
+        self._playing_activity = None
 
     @tasks.loop(seconds=10)
     async def presence_check_loop(self):
         await self.update_presence()
 
+    @presence_check_loop.before_loop
+    async def before_presence_check_loop(self):
+        await self.wait_until_ready()
+
     async def update_presence(self):
-        is_playing = False
-        for vc in self.voice_clients:
-            if vc.is_connected() and (vc.is_playing() or vc.is_paused()):
-                is_playing = True
-                break
+        """Single source of truth for the bot's Discord status: online only while actually
+        connected to voice somewhere, within VOICE_OFFLINE_DELAY seconds of having left voice,
+        or within COMMAND_OFFLINE_DELAY seconds of the last command/interaction. Otherwise offline."""
+        now = time.monotonic()
+        voice_connected = any(vc.is_connected() for vc in self.voice_clients)
 
-        current_time = time.time()
-        time_since_activity = current_time - self._last_activity_time
-        in_grace_period = time_since_activity < 120
+        if voice_connected:
+            self._was_voice_connected = True
+        elif self._was_voice_connected:
+            # Just left voice this tick - start the "still online for a bit" grace window now.
+            self._was_voice_connected = False
+            self._voice_grace_until = now + self.VOICE_OFFLINE_DELAY
 
-        if is_playing:
+        online = voice_connected or now < self._voice_grace_until or now < self._command_grace_until
+
+        if online:
             status = discord.Status.online
-            activity = self.activity
-        elif in_grace_period:
-            status = discord.Status.online
-            activity = discord.Activity(
+            activity = self._playing_activity or discord.Activity(
                 type=discord.ActivityType.listening,
                 name=self.config['bot']['activity']
             )
@@ -287,11 +303,11 @@ class MusicBot(commands.Bot):
             await self.change_presence(status=status, activity=activity)
 
     async def on_command(self, ctx):
-        self.reset_activity_timer()
+        self.mark_command_activity()
         await self.update_presence()
 
     async def on_interaction(self, interaction):
-        self.reset_activity_timer()
+        self.mark_command_activity()
         await self.update_presence()
 
 async def main():

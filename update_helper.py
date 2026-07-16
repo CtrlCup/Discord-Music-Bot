@@ -81,12 +81,19 @@ def check_env():
         return True
 
 def check_versions():
+    """Vergleicht die lokalen .env/docker-compose.yml gegen die aktuell erwarteten
+    Template-Versionen. Die "aktuell erwarteten" Versionen stehen zusammen mit
+    BOT_VERSION zentral in static.env (ENV_TEMPLATE_VERSION/COMPOSE_TEMPLATE_VERSION),
+    statt verstreut in den Kopfzeilen von .env.example/docker-compose.yml.example -
+    so lassen sich alle drei Versionsnummern an einer Stelle prüfen."""
     print_colored("\n--- 📝 Überprüfe Datei-Versionen ---", "blue")
-    
+
+    static = parse_env('static.env')
+
     # Check .env
-    example_env_ver = get_file_version('.env.example')
+    example_env_ver = static.get('ENV_TEMPLATE_VERSION')
     local_env_ver = get_file_version('.env')
-    
+
     env_ok = True
     if example_env_ver:
         if not local_env_ver:
@@ -99,16 +106,16 @@ def check_versions():
             env_ok = False
         else:
             print_colored(f"✅ .env Version ist aktuell (v{local_env_ver})", "green")
-            
+
     # Check docker-compose.yml
     if not os.path.exists('docker-compose.yml'):
         print_colored("❌ Keine docker-compose.yml gefunden!", "red")
         print("  Bitte erstelle eine Kopie von docker-compose.yml.example als docker-compose.yml.")
         return False
-        
-    example_compose_ver = get_file_version('docker-compose.yml.example')
+
+    example_compose_ver = static.get('COMPOSE_TEMPLATE_VERSION')
     local_compose_ver = get_file_version('docker-compose.yml')
-    
+
     compose_ok = True
     if example_compose_ver:
         if not local_compose_ver:
@@ -121,8 +128,64 @@ def check_versions():
             compose_ok = False
         else:
             print_colored(f"✅ docker-compose.yml Version ist aktuell (v{local_compose_ver})", "green")
-            
     return env_ok and compose_ok
+
+def get_upstream_branch():
+    try:
+        res = subprocess.run(['git', 'rev-parse', '--abbrev-ref', '@{u}'], capture_output=True, text=True, check=True)
+        return res.stdout.strip()
+    except Exception:
+        return 'origin/main'
+
+def get_remote_bot_version(upstream):
+    try:
+        res = subprocess.run(['git', 'show', f'{upstream}:static.env'], capture_output=True, text=True, check=True)
+        for line in res.stdout.splitlines():
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            if '=' in line:
+                key, val = line.split('=', 1)
+                if key.strip() == 'BOT_VERSION':
+                    return val.strip()
+    except Exception:
+        pass
+    return None
+
+def check_bot_version():
+    print_colored("\n--- 🤖 Überprüfe Bot-Version ---", "blue")
+    
+    # Check static.env for local version
+    local_static = parse_env('static.env')
+    local_ver = local_static.get('BOT_VERSION')
+    
+    if not local_ver:
+        print_colored("⚠️ Lokale Bot-Version konnte nicht aus static.env gelesen werden.", "yellow")
+        return False
+        
+    upstream = get_upstream_branch()
+    
+    # Remote version from Git
+    # First, let's fetch to ensure we have the latest info
+    try:
+        subprocess.run(['git', 'fetch'], capture_output=True, timeout=5, check=False)
+    except Exception:
+        pass
+        
+    remote_ver = get_remote_bot_version(upstream)
+    
+    if not remote_ver:
+        print(f"Deine Version: v{local_ver}")
+        print_colored("⚠️ Aktuelle Version auf GitHub konnte nicht ermittelt werden (Prüfe Internetverbindung/Git).", "yellow")
+        return True
+        
+    if local_ver != remote_ver:
+        print_colored(f"📢 Update verfügbar! Deine Version: v{local_ver} | Aktuelle Version: v{remote_ver}", "yellow")
+        print("  Führe 'python3 update_helper.py pull' aus, um das Update zu installieren.")
+        return False
+    else:
+        print_colored(f"✅ Bot-Version ist aktuell (v{local_ver})", "green")
+        return True
 
 def check_git():
     print_colored("\n--- 🐙 Überprüfe Git-Status ---", "blue")
@@ -184,11 +247,13 @@ def main():
         run_pull()
         check_env()
         check_versions()
+        check_bot_version()
         check_git()
     else:
         # Default: Check status
         env_ok = check_env()
         ver_ok = check_versions()
+        bot_ok = check_bot_version()
         git_ok = check_git()
         
         print_colored("\n--- 💡 Hilfe / Anleitung ---", "blue")
@@ -196,7 +261,7 @@ def main():
         print("  python3 update_helper.py         - Führt Status-Checks durch (empfohlen)")
         print("  python3 update_helper.py pull    - Holt Updates von GitHub und prüft danach die Konfiguration")
         
-        if not env_ok or not ver_ok or not git_ok:
+        if not env_ok or not ver_ok or not bot_ok or not git_ok:
             print_colored("\nBitte behebe die obigen Warnungen, um einen reibungslosen Betrieb zu gewährleisten.", "yellow")
 
 if __name__ == '__main__':

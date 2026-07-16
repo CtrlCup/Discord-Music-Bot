@@ -34,24 +34,15 @@ class MusicAdvanced(commands.Cog):
                 task.cancel()
     
     async def _check_and_reset_presence(self):
-        """Checks if any voice clients are playing. If not, resets presence to default."""
-        any_playing = False
-        for vc in self.bot.voice_clients:
-            if vc.is_playing() or vc.is_paused():
-                any_playing = True
-                break
-        
+        """Clears the 'now playing' activity once nothing is playing anywhere, then lets
+        bot.update_presence() decide the actual online/offline status (voice/command grace)."""
+        any_playing = any(vc.is_playing() or vc.is_paused() for vc in self.bot.voice_clients)
         if not any_playing:
-            try:
-                # Reset presence to default activity
-                activity = discord.Activity(
-                    type=discord.ActivityType.listening,
-                    name=self.bot.config['bot']['activity']
-                )
-                await self.bot.change_presence(activity=activity)
-                logger.info("Bot presence reset to default")
-            except Exception:
-                logger.exception("Presence-Reset fehlgeschlagen")
+            self.bot.clear_playing_activity()
+        try:
+            await self.bot.update_presence()
+        except Exception:
+            logger.exception("Presence-Update fehlgeschlagen")
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -79,7 +70,6 @@ class MusicAdvanced(commands.Cog):
                     del state.voice_clients[before.channel.id]
                 
                 # Check and reset presence if no longer playing anything
-                self.bot.reset_activity_timer()
                 await self._check_and_reset_presence()
             
             # If the bot was moved from one channel to another
@@ -143,11 +133,9 @@ class MusicAdvanced(commands.Cog):
         """Setzt die Bot-Activity und postet - falls aktiviert - eine Songwechsel-Ankündigung.
         Hinweis: Discord erlaubt Bots nur eine globale Presence, bei gleichzeitiger Wiedergabe
         auf mehreren Servern zeigt sie daher immer nur den zuletzt gestarteten Song."""
+        self.bot.set_playing_activity(discord.Activity(type=discord.ActivityType.listening, name=title))
         try:
-            await self.bot.change_presence(
-                activity=discord.Activity(type=discord.ActivityType.listening, name=title),
-                status=discord.Status.online
-            )
+            await self.bot.update_presence()
         except Exception:
             logger.exception("Presence-Update fehlgeschlagen")
 
