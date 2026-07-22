@@ -100,7 +100,7 @@ class MusicBot(commands.Bot):
     # nach dem letzten Befehl/Interaktion noch gehalten wird, bevor der Bot als
     # offline angezeigt wird (Sekunden).
     VOICE_OFFLINE_DELAY = 120
-    COMMAND_OFFLINE_DELAY = 30
+    COMMAND_OFFLINE_DELAY = 60
 
     def __init__(self):
         intents = discord.Intents.default()
@@ -247,12 +247,12 @@ class MusicBot(commands.Bot):
             logger.error(f'Unhandled error: {error}')
             await ctx.send(f"❌ Ein unerwarteter Fehler ist aufgetreten:\n`{error}`")
 
-    async def change_presence(self, *, activity=None, status=None, shard_id=None):
+    async def change_presence(self, *, activity=None, status=None):
         if status is not None:
             self._current_status = status
         if activity is not None:
             self._current_activity = activity
-        await super().change_presence(activity=activity, status=status, shard_id=shard_id)
+        await super().change_presence(activity=activity, status=status)
 
     def mark_command_activity(self):
         """Called on every command/interaction: keeps the bot visibly online for COMMAND_OFFLINE_DELAY seconds."""
